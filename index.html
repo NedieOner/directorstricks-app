@@ -288,6 +288,11 @@ input[type=range]{width:100%;accent-color:var(--red);margin-top:8px}
 .res-name{margin:0 0 6px;font-size:17px}.kvs{display:grid;margin-top:10px;border-top:1px solid var(--line)}
 .kv{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}.kv span{color:var(--muted)}.kv b{text-align:right;font-weight:600;word-break:break-all}.kv .none{color:var(--muted);font-weight:400}
 .src h4 small{color:var(--muted);font-weight:500;margin-left:6px}.src .sm{font-size:12px;color:var(--muted)}
+.tabed-head{display:flex;gap:6px;align-items:center}.tabed-head input{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:8px;padding:8px 10px;font:inherit;font-weight:700}
+.ic{width:34px;height:34px;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:8px;cursor:pointer;flex:none}.ic:disabled{opacity:.3}.ic.del{color:var(--red)}
+.tabed .sm{font-size:12px;color:var(--muted);margin:6px 0}.fchips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.fchip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:4px 4px 4px 10px;font-size:12px;font-weight:600}
+.fchip button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0 4px}.fadd{border:1px dashed var(--line);background:transparent;color:var(--fg);border-radius:999px;padding:5px 10px;font:inherit;font-size:12px;width:130px}
 .when{display:grid;gap:8px}.when .wl{font-size:12px;color:var(--muted);font-weight:600}.when .wl span{color:var(--fg)}
 .wq,.wtimes{display:flex;flex-wrap:wrap;gap:6px}.wq .chip,.wtimes .chip{margin:0}.wtimes .chip:disabled{opacity:.35}
 .wdays{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
@@ -449,12 +454,12 @@ input[type=range]{width:100%;accent-color:var(--red);margin-top:8px}
 
 <script>
 const TABS=[
-  {id:"latest",label:"Latest"},
+  {id:"latest",label:"Latest",kind:"latest"},
   {id:"plugins",label:"Plugins",filters:["Photoshop","After Effects","Premiere Pro","DaVinci Resolve","Final Cut Pro"]},
   {id:"overlays",label:"Overlays",filters:["Transitions","Film & retro","VFX elements","Titles","Textures & PNG","Light leaks","Glitch","Packs"]},
   {id:"sfx",label:"SFX",filters:["Whooshes","Impacts","Risers","Ambience","Sound packs"]},
   {id:"luts",label:"LUTs",filters:["Film emulation","Music video","Log to Rec.709","Lightroom presets","Teal & orange","Black & white"]},
-  {id:"course",label:"Course"},
+  {id:"course",label:"Course",kind:"course"},
   {id:"ai",label:"AI",pub:true,filters:["Prompts","Workflows","Higgsfield","Seedance","Midjourney","Voice"]}
 ];
 // tier: 0 free, 1/3/5 = friends needed, 9 = Pro only
@@ -503,7 +508,7 @@ const RANKS=[{k:0,name:"Viewer"},{k:1,name:"Insider"},{k:3,name:"Crew"},{k:5,nam
 const DEF={plan:"free",inv:0,tab:"latest",filter:null,q:"",got:[],phone:"",email:"",skin:"auto",role:"admin",seenPromo:false,disc:false,payPending:null,edits:{},adm:"overview",until:new Date(Date.now()+30*864e5).toISOString().slice(0,10)};
 let S=load();
 function load(){try{const s=JSON.parse(localStorage.getItem("dtvault")||"null");if(s)return Object.assign({},DEF,s,{filter:null,q:""});}catch(e){}return {...DEF};}
-function save(){try{localStorage.setItem("dtvault",JSON.stringify({plan:S.plan,inv:S.inv,tab:S.tab,got:S.got,phone:S.phone,email:S.email,until:S.until,skin:S.skin,role:S.role,seenPromo:S.seenPromo,disc:S.disc,payPending:S.payPending,edits:S.edits,adm:S.adm}));}catch(e){}}
+function save(){try{localStorage.setItem("dtvault",JSON.stringify({plan:S.plan,inv:S.inv,tab:S.tab,got:S.got,phone:S.phone,email:S.email,until:S.until,skin:S.skin,role:S.role,seenPromo:S.seenPromo,disc:S.disc,payPending:S.payPending,edits:S.edits,adm:S.adm,tabs:S.tabs}));}catch(e){}}
 
 const $=id=>document.getElementById(id);
 const rank=()=>S.plan==="pro"?"Pro":RANKS.filter(r=>S.inv>=r.k).pop().name;
@@ -572,8 +577,8 @@ function itemRow(it){
 
 function renderPanel(){
   if(S.tab==="admin"){if(S.role==="admin"){renderAdmin();return;}S.tab="latest";}
-  const tab=TABS.find(t=>t.id===S.tab);
-  if(tab.id==="course"){renderCourse();return;}
+  let tab=TABS.find(t=>t.id===S.tab);if(!tab){tab=TABS[0];S.tab=tab.id;S.filter=null;}
+  if(tab.kind==="course"||tab.id==="course"){renderCourse();return;}
   let list=(S.role==="admin"?ITEMS:ITEMS.filter(i=>!i.hidden));list=tab.id==="latest"?[...list].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10):list.filter(i=>i.cat===tab.id);
   if(S.filter)list=list.filter(i=>i.f===S.filter);
   if(S.q){const q=S.q.toLowerCase();list=list.filter(i=>(i.name+" "+i.f+" "+i.soft.join(" ")).toLowerCase().includes(q));}
@@ -793,9 +798,9 @@ function openEdit(id){const it=typeof id==="object"?id:ITEMS.find(i=>i.id===id);
 // ---------- admin tab ----------
 function renderAdmin(){
   meSync();const pend=PAYMENTS.filter(p=>p.status==="pending").length;const a=S.adm||"overview";
-  const nav=[["overview","Overview"],["users","Users"],["payments","Payments",pend],["schedule","Schedule"],["sources","Sources"],["broadcast","Broadcast"]];
+  const nav=[["overview","Overview"],["users","Users"],["payments","Payments",pend],["schedule","Schedule"],["sources","Sources"],["tabs","Tabs"],["broadcast","Broadcast"]];
   let body="";
-  if(a==="overview")body=admOverview(pend);else if(a==="users")body=admUsers();else if(a==="payments")body=admPayments();else if(a==="schedule")body=admSchedule();else if(a==="sources")body=admSources();else body=admBroadcast();
+  if(a==="overview")body=admOverview(pend);else if(a==="users")body=admUsers();else if(a==="payments")body=admPayments();else if(a==="schedule")body=admSchedule();else if(a==="sources")body=admSources();else if(a==="tabs")body=admTabs();else body=admBroadcast();
   $("panel").innerHTML=`<div class="section-label" style="margin-top:0"><span>Admin panel</span><span class="sample">sample data</span></div>
     <div class="adm-nav">${nav.map(([k,l,c])=>`<button data-adm="${k}" aria-pressed="${k===a}">${l}${c?`<span class="count">${c}</span>`:""}</button>`).join("")}</div>${body}`;
   bindAdmin(a);
@@ -888,6 +893,33 @@ function admSources(){S.sources=S.sources||SRC_DEF;const cap=S.srcTest??"Neon No
     <div class="kvs"><div class="kv"><span>Name</span><b>${esc(r.name)}</b></div><div class="kv"><span>Section</span><b>${esc(r.sec)}</b></div><div class="kv"><span>Filter</span><b>${esc(r.f)}</b></div><div class="kv"><span>Access</span><b>${esc(r.tier)}</b></div></div>
     <div class="sm" style="margin-top:8px">Tags: #plugins #overlays #sfx #luts #ai · access #free #f1 #f3 #f5 #pro · filter = its name as a tag, e.g. #musicvideo</div></div>`;
 }
+// ---------- tabs editor: main tabs and the filters inside them ----------
+const slug=t=>t.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,24)||"tab";
+function tabsDraft(){if(!S.tabDraft)S.tabDraft=JSON.parse(JSON.stringify(TABS));return S.tabDraft;}
+function admTabs(){const D=tabsDraft(),dirty=JSON.stringify(D)!==JSON.stringify(TABS);
+  return `<div class="hint" style="margin:0 0 10px">Rename, reorder, add or remove tabs and the filters inside them. Changes go live for everyone after Save.</div>
+  ${D.map((t,i)=>`<div class="card tabed"><div class="tabed-head"><input data-tlabel="${i}" value="${esc(t.label)}" aria-label="Tab name">
+     <button class="ic" data-tmove="${i}:-1" ${i?"":"disabled"} aria-label="Move up">↑</button><button class="ic" data-tmove="${i}:1" ${i<D.length-1?"":"disabled"} aria-label="Move down">↓</button>
+     <button class="ic del" data-tdel="${i}" aria-label="Delete tab">✕</button></div>
+   <div class="sm">${t.kind==="latest"?"Shows the newest drops from every tab":t.kind==="course"?"Course lessons":`${ITEMS.filter(x=>x.cat===t.id).length} resources · tag #${t.id}`}${t.pub?" · free for everyone":""}</div>
+   ${t.kind?"":`<div class="fchips">${(t.filters||[]).map((f,j)=>`<span class="fchip">${esc(f)}<button data-fdel="${i}:${j}" aria-label="Remove ${esc(f)}">×</button></span>`).join("")}
+     <input class="fadd" data-fadd="${i}" placeholder="+ filter, Enter" aria-label="Add filter"></div>`}</div>`).join("")}
+  <div class="card"><div class="tabed-head"><input id="tNew" placeholder="New tab name, e.g. Production"><button class="btn sm" id="tAdd">Add tab</button></div></div>
+  <div class="btnrow"><button class="btn" id="tSave" style="flex:1" ${dirty?"":"disabled"}>Save tabs</button><button class="btn ghost" id="tReset" ${dirty?"":"disabled"}>Undo changes</button></div>`;}
+function applyTabs(list){TABS.splice(0,TABS.length,...list);S.tabDraft=null;if(!TABS.find(t=>t.id===S.tab))S.tab=TABS[0].id;}
+async function saveTabs(){const D=tabsDraft();if(!D.some(t=>!t.kind)){toast("Keep at least one resource tab");return;}
+  if(window.LIVE){const r=await call("/admin/tabs",{tabs:D});if(r.error){toast("Not saved: "+r.error);return;}applyTabs(r.tabs);}else{applyTabs(D);S.tabs=JSON.parse(JSON.stringify(TABS));}
+  renderTabs();renderAdmin();save();toast("Tabs saved");}
+document.addEventListener("click",e=>{if(S.adm!=="tabs"||S.tab!=="admin")return;const D=tabsDraft();
+  const mv=e.target.closest("[data-tmove]");if(mv){const [i,d]=mv.dataset.tmove.split(":").map(Number);[D[i],D[i+d]]=[D[i+d],D[i]];renderAdmin();return;}
+  const dl=e.target.closest("[data-tdel]");if(dl){const t=D[+dl.dataset.tdel];if(!confirm(`Delete the “${t.label}” tab? Its resources stay in Latest and in the database.`))return;D.splice(+dl.dataset.tdel,1);renderAdmin();return;}
+  const fd=e.target.closest("[data-fdel]");if(fd){const [i,j]=fd.dataset.fdel.split(":").map(Number);D[i].filters.splice(j,1);renderAdmin();return;}
+  if(e.target.id==="tAdd"){const v=$("tNew").value.trim();if(!v)return;let id=slug(v);while(D.some(t=>t.id===id))id+="-2";D.push({id,label:v,filters:[]});renderAdmin();return;}
+  if(e.target.id==="tSave"){saveTabs();return;}
+  if(e.target.id==="tReset"){S.tabDraft=null;renderAdmin();return;}});
+document.addEventListener("change",e=>{const l=e.target.closest("[data-tlabel]");if(l){tabsDraft()[+l.dataset.tlabel].label=l.value.trim()||tabsDraft()[+l.dataset.tlabel].label;renderAdmin();}});
+document.addEventListener("keydown",e=>{const a=e.target.closest&&e.target.closest("[data-fadd]");if(a&&e.key==="Enter"){e.preventDefault();const v=a.value.trim();if(!v)return;const t=tabsDraft()[+a.dataset.fadd];t.filters=t.filters||[];if(!t.filters.includes(v))t.filters.push(v);renderAdmin();const n=document.querySelector(`[data-fadd="${a.dataset.fadd}"]`);if(n)n.focus();}
+  if(e.target.id==="tNew"&&e.key==="Enter"){e.preventDefault();$("tAdd").click();}});
 function admBroadcast(){
   const aud=S.bAud||"all";const segs={all:["All users",USERS],free:["Free",USERS.filter(u=>u.plan!=="pro")],pro:["Pro",USERS.filter(u=>u.plan==="pro")],idle:["Inactive 7+ days",USERS.filter(u=>!u.events.some(e=>e.t.slice(0,5)>=new Date(Date.now()-7*864e5).toISOString().slice(5,10)))]};
   const b=S.bDraft||{text:"New drop is live 🎬 Anamorphic flare pack is now in the app.",btn:"Open the app",when:""};
@@ -964,6 +996,7 @@ document.addEventListener("change",e=>{
   const sd=e.target.closest("[data-sdate]");if(sd&&sd.value){SCHED.find(s=>s.id===sd.dataset.sdate).date=sd.value;S.calDay=sd.value;S.calMonth=sd.value.slice(0,7);renderAdmin();toast("Moved to "+fmt(sd.value));}
 });
 $("promoGet").onclick=()=>{S.seenPromo=true;S.disc=true;logMe("tap Get the discount");openPay();};
+if(Array.isArray(S.tabs)&&S.tabs.length)TABS.splice(0,TABS.length,...S.tabs);
 Object.entries(S.edits||{}).forEach(([id,ch])=>{const it=ITEMS.find(i=>i.id===+id);if(it)Object.assign(it,ch);});
 // ---------- Telegram Mini App ----------
 // Stage 1: this admin check runs in the browser and is for testing only.
@@ -981,12 +1014,91 @@ if(window.TGA){const T=window.TGA,u=(T.initDataUnsafe&&T.initDataUnsafe.user)||{
   const BB=T.BackButton;const syncBack=()=>{(!$("viewer").hidden||openId)?BB.show():BB.hide();};
   BB.onClick(()=>{if(!$("viewer").hidden)$("vClose").click();else openSheet(null);syncBack();});
   new MutationObserver(syncBack).observe(document.body,{subtree:true,attributes:true,attributeFilter:["hidden"]});}
+// ---------- live mode: real data from the bot server (stage 2) ----------
+// Set API to the Cloudflare Worker address after deploy. Empty = demo data.
+const API="";
+window.LIVE=!!(window.TGA&&API);
+async function call(path,body){try{const r=await fetch(API+"/api"+path,{method:body?"POST":"GET",headers:{authorization:"tma "+window.TGA.initData,"content-type":"application/json"},body:body?JSON.stringify(body):undefined});
+  const j=await r.json().catch(()=>({}));if(!r.ok&&!j.error)j.error="HTTP "+r.status;return j;}catch(e){return {error:"no connection"};}}
+const PAL=[["#2a0c10","#e3262f"],["#10203a","#2b7bff"],["#2a1a08","#e0a040"],["#1a1440","#7a5cff"],["#06362a","#12a37a"],["#300a20","#ff4fa0"]];
+const tShort=iso=>(iso||"").slice(5,16).replace("T"," ");
+const LOCAL_SHOP=ITEMS.filter(i=>i.shop).map(i=>({...i,id:i.id+100000}));
+async function liveBoot(){
+  const [tb,me,it]=await Promise.all([call("/tabs"),call("/me"),call("/items")]);
+  if(me.error){toast(me.error);return;}
+  if(tb.tabs)applyTabs(tb.tabs);
+  if(!me.disc){S.seenPromo=true;if(openId==="promoSheet")openSheet(null);}
+  Object.assign(S,{plan:me.user.plan,until:me.user.until||S.until,inv:me.inv,got:me.got,disc:me.disc,phone:me.user.phone||"",email:me.user.email||"",role:me.admin?"admin":"subscriber",tgAdmin:me.admin});
+  Object.entries(me.prices||{}).forEach(([k,v])=>{if(PRICES[k])PRICES[k].stars=v.stars;});
+  window.BOT=me.bot;const rl=$("refLink");if(rl)rl.textContent=`t.me/${me.bot}?start=ref_${me.user.username||me.user.id}`;
+  const own=(it.items||[]).map((x,i)=>({...x,g:PAL[x.id%PAL.length],img:x.img&&x.img.startsWith("/img/")?API+x.img:x.img,hidden:x.status&&x.status!=="live",n:x.n||(x.shop?x.brand:""),size:x.size||""}));
+  ITEMS.splice(0,ITEMS.length,...own.filter(x=>!x.status||x.status==="live"),...LOCAL_SHOP);
+  SCHED.splice(0,SCHED.length,...own.filter(x=>x.status&&x.status!=="live").map(x=>({...x,id:"i"+x.id,sid:x.id})));
+  if(me.admin)await liveAdmin(me);
+  render();}
+async function liveAdmin(me){
+  const [us,pa,so,br]=await Promise.all([call("/admin/users"),call("/admin/payments"),call("/admin/sources"),call("/admin/broadcasts")]);
+  const pend=new Set((pa.payments||[]).filter(p=>p.status==="pending").map(p=>p.user_id));
+  const map=u=>({id:u.id===me.user.id?"me":String(u.id),uid:u.id,name:u.name||"Telegram user",handle:u.username||("id"+u.id),plan:u.plan==="pro"&&(u.until||"")>=todayISO()?"pro":"free",until:u.until,inv:u.inv,joined:(u.joined||"").slice(0,10),country:"TG",payPending:pend.has(u.id),events:[]});
+  const list=(us.users||[]).map(map);list.sort((a,b)=>(b.id==="me")-(a.id==="me"));
+  USERS.splice(0,USERS.length,...list);
+  PAYMENTS.splice(0,PAYMENTS.length,...(pa.payments||[]).map(p=>({id:p.id,uid:p.user_id===me.user.id?"me":String(p.user_id),method:p.method,amount:p.amount,plan:p.plan||"m",date:tShort(p.at),status:p.status==="paid"?"approved":p.status,via:p.via,auto:p.method==="Telegram Stars",shot:p.proof_file_id?shotSvg("#26a17b"):null})));
+  S.sources=(so.sources||[]).map(x=>({id:String(x.chat_id),title:x.title,handle:x.handle||"private channel",kind:x.kind,on:x.on_post,sec:x.sec,tier:x.tier,ok:!!x.ok,last:tShort(x.last)||"—",count:x.count}));
+  BROADCASTS.splice(0,BROADCASTS.length,...(br.broadcasts||[]).map(b=>({date:tShort(b.send_at),aud:b.aud+(b.status==="scheduled"?" (scheduled)":""),text:b.text,reach:b.reach})));}
+async function loadEvents(id){const u=USERS.find(x=>x.id===id);if(!u)return;const r=await call("/admin/events",{uid:u.uid});
+  u.events=(r.events||[]).reverse().map(e=>ev(tShort(e.at),e.text,e.kind));if(S.selUser===id)renderAdmin();}
+const toItem=it=>({id:it.sid||it.id,cat:it.cat,name:it.name,f:it.f,tier:+it.tier,val:+it.val||0,date:it.date,size:it.size,link:it.link,pass:it.pass,status:it.sid?(it.date?"scheduled":"draft"):(it.hidden?"draft":"live")});
+if(window.LIVE){
+  const _ra=renderAdmin;renderAdmin=function(){_ra();const l=document.querySelector("#panel .sample");if(l)l.textContent="live";};
+  const _oe=openEdit;openEdit=function(x){window.__ed=typeof x==="object"?x:ITEMS.find(i=>i.id===x);return _oe(x);};
+  logMe=function(){};
+  let lastPE="";const _sv=save;save=function(){_sv();const pe=S.phone+"|"+S.email;if(lastPE&&pe!==lastPE)call("/profile",{phone:S.phone,email:S.email});lastPE=pe;};
+  window.addEventListener("click",async e=>{
+    const g=e.target.closest("[data-get]");if(g){e.stopPropagation();const id=+g.dataset.get;const r=await call("/get",{id});
+      if(r.error){toast(r.error);return;}if(!S.got.includes(id))S.got.push(id);render();if(!$("viewer").hidden)openViewer(id);toast("Sent to your Telegram chat");return;}
+    if(e.target.id==="payNow"){e.stopPropagation();const m=S.payMethod||"stars";
+      if(m!=="stars"){toast("This method is coming soon. Use Telegram Stars or USDT");return;}
+      const r=await call("/invoice",{plan:S.payPlan||"m"});if(r.error){toast("Could not create the invoice");return;}
+      window.TGA.openInvoice(r.link,st=>{if(st==="paid"){openSheet(null);toast("Payment confirmed. Pro is active");setTimeout(liveBoot,1500);}});return;}
+    if(e.target.closest("label.upload")){e.preventDefault();e.stopPropagation();window.TGA.openTelegramLink("https://t.me/"+window.BOT);toast("Send the screenshot to the bot chat");return;}
+    const ua=e.target.closest("[data-uact]");if(ua){e.stopPropagation();const u=USERS.find(x=>x.id===S.selUser);const act=ua.dataset.uact;
+      if(act==="inv"){toast("Friends are counted by the bot from invite links");return;}
+      const r=await call("/admin/act",{uid:u.uid,act,days:30});if(r.error){toast(r.error);return;}u.plan=act==="grant"?"pro":"free";if(r.until)u.until=r.until;await loadEvents(u.id);toast(act==="grant"?"Pro granted, user notified":"Set to Free");return;}
+    const ok=e.target.closest("[data-pay-ok]"),no=e.target.closest("[data-pay-no]");if(ok||no){e.stopPropagation();const id=+(ok?ok.dataset.payOk:no.dataset.payNo);const p=PAYMENTS.find(x=>x.id===id);
+      const r=await call("/admin/pay",{id,plan:ok?(p.plan||"m"):"x"});toast(r.error||`#${id} ${r.result}`);await liveAdmin({user:{id:USERS.find(u=>u.id==="me")?.uid}});renderAdmin();return;}
+    const us=e.target.closest("[data-user]");if(us&&us.dataset.user){setTimeout(()=>loadEvents(us.dataset.user),0);}
+    const sd=e.target.closest("[data-srcdel]");if(sd){e.stopPropagation();if(!confirm("Disconnect this channel? New posts there will stop coming in."))return;await call("/admin/source",{chat_id:sd.dataset.srcdel,remove:1});S.sources=S.sources.filter(z=>z.id!==sd.dataset.srcdel);renderAdmin();return;}
+    const ss=e.target.closest("[data-srcsync]");if(ss){e.stopPropagation();await liveBoot();toast("Updated");return;}
+  },true);
+  window.addEventListener("submit",async e=>{
+    const f=e.target;
+    if(f.id==="termForm"){e.preventDefault();e.stopPropagation();const u=USERS.find(x=>x.id===S.selUser),v=$("termIn").value.trim();if(!v)return;$("termIn").value="";
+      if(v.startsWith("/grant"))await call("/admin/act",{uid:u.uid,act:"grant",days:parseInt(v.split(" ")[1])||30});
+      else if(v==="/free")await call("/admin/act",{uid:u.uid,act:"free"});
+      else if(v==="/status"||v==="/help"||v==="/history"){u.events.push(ev(tShort(new Date().toISOString()),v==="/help"?"commands: /status · /grant 30 · /free · any other text is sent to the user":`status ${statusOf(u)} · ${u.plan==="pro"?"Pro until "+fmt(u.until):"Free"} · friends ${u.inv}/5`,"sys"));renderAdmin();return;}
+      else{const r=await call("/admin/act",{uid:u.uid,act:"message",text:v});if(r.error)toast(r.error);}
+      await loadEvents(u.id);const n=$("termIn");if(n)n.focus();return;}
+    if(f.id==="bForm"){e.preventDefault();e.stopPropagation();if(!f.text.value.trim()){toast("Write a message first");return;}
+      const r=await call("/admin/broadcast",{text:f.text.value,btn:f.btn.value,aud:f.aud.value,send_at:f.when.value?new Date(f.when.value).toISOString():null});
+      if(r.error){toast(r.error);return;}S.bDraft=null;toast(f.when.value?"Scheduled":"Sending now");await liveAdmin({user:{id:USERS.find(u=>u.id==="me")?.uid}});renderAdmin();return;}
+    if(f.id==="editForm"){const it=window.__ed;setTimeout(async()=>{if(!it||it.shop&&it.id>100000)return;const r=await call("/admin/item",toItem(it));if(r.error)toast("Not saved on the server: "+r.error);},0);}
+    if(f.id==="srcAdd"){e.preventDefault();e.stopPropagation();const h=f.h.value.trim();if(!h){toast("Paste the channel link");return;}
+      const r=await call("/admin/source/add",{handle:h,kind:f.kind.value});if(r.error){toast(r.error);return;}toast("Channel connected");await liveAdmin({user:{id:USERS.find(u=>u.id==="me")?.uid}});renderAdmin();}
+  },true);
+  window.addEventListener("change",async e=>{
+    const st=e.target.closest("[data-stier]"),sd=e.target.closest("[data-sdate]");
+    if(st||sd)setTimeout(()=>{const it=SCHED.find(s=>s.id===(st||sd).dataset[st?"stier":"sdate"]);if(it)call("/admin/item",toItem(it));},0);
+    const sr=e.target.closest("[data-src]");if(sr){const k={on:"on_post"}[sr.dataset.k]||sr.dataset.k;call("/admin/source",{chat_id:sr.dataset.src,[k]:sr.value});}
+  },true);
+}
+
 // diagnostics line in the profile menu (stage 1 only)
 (function(){const T=window.Telegram&&Telegram.WebApp,u=T&&T.initDataUnsafe&&T.initDataUnsafe.user;
   const txt=!T?"Telegram SDK not loaded":!T.initData?"Opened outside the bot (no Telegram login data) · v3":`Telegram: @${u&&u.username||"no username"} · id ${u&&u.id} · admin ${S.tgAdmin?"yes":"no"} · v3`;
   const el=document.createElement("div");el.id="tgDiag";el.style.cssText="font:12px/1.4 var(--body);color:var(--muted);text-align:center;padding:12px 16px 4px;user-select:all";el.textContent=txt;
   $("profileSheet").appendChild(el);window.TG_DIAG=txt;})();
 render();
+if(window.LIVE)liveBoot();
 if(!S.seenPromo&&S.plan!=="pro")setTimeout(()=>{if(!openId){openSheet("promoSheet");logMe("offer −15% shown");}},900);
 </script>
 

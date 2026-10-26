@@ -1,0 +1,20 @@
+# Director Tricks bot server (Cloudflare Workers).
+# Secrets are NOT stored here. Set them in the Cloudflare dashboard:
+#   Worker → Settings → Variables and Secrets → BOT_TOKEN, WEBHOOK_SECRET, SETUP_KEY
+name = "directortricks-bot"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+ADMIN_IDS = "317423768"
+BOT_USERNAME = "directortricks_bot"
+APP_URL = "https://nedieoner.github.io/directorstricks-app/"
+APP_ORIGIN = "https://nedieoner.github.io"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "directortricks"
+database_id = "PUT-D1-DATABASE-ID-HERE"
+
+[triggers]
+crons = ["*/10 * * * *"]
