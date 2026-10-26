@@ -422,7 +422,7 @@ input[type=range]{width:100%;accent-color:var(--red);margin-top:8px}
         <div class="ref-top"><div class="ref-title" id="refTitle">Invite friends, unlock packs</div><div class="ref-count" id="refCount">0 / 5</div></div>
         <div class="ladder" id="ladder"><i></i><i></i><i></i><i></i><i></i></div>
         <div class="ref-steps"><span data-k="1">1 · Insider</span><span data-k="3">3 · Crew</span><span data-k="5">5 · Director</span></div>
-        <div class="invite"><code id="refLink">t.me/DirectorTricksBot?start=ref_alexcuts</code><button class="btn" id="copyBtn">Copy</button></div>
+        <div class="invite"><code id="refLink">t.me/directortricks_bot?start=ref_alexcuts</code><button class="btn" id="copyBtn">Copy</button></div>
       </div>
     </details>
     <div class="mrow plain" style="cursor:default"><span class="mi">Style</span>
@@ -968,14 +968,15 @@ Object.entries(S.edits||{}).forEach(([id,ch])=>{const it=ITEMS.find(i=>i.id===+i
 // ---------- Telegram Mini App ----------
 // Stage 1: this admin check runs in the browser and is for testing only.
 // Stage 2 moves it to the server (initData signature check), see README.
-const ADMIN_IDS=[]; // your Telegram user id, e.g. [123456789] (ask @userinfobot)
+const ADMIN_IDS=[]; // Telegram user ids, e.g. [123456789] (ask @userinfobot)
+const ADMIN_USERNAMES=["nedieyo"]; // test only: usernames can change, stage 2 uses ids on the server
 window.TGA=window.Telegram&&Telegram.WebApp&&Telegram.WebApp.initData?Telegram.WebApp:null;
 var MEH="alexcuts";
 if(window.TGA){const T=window.TGA,u=(T.initDataUnsafe&&T.initDataUnsafe.user)||{};T.ready();T.expand();
-  S.tgAdmin=ADMIN_IDS.includes(u.id);S.role=S.tgAdmin?"admin":"subscriber";if(!S.tgAdmin&&S.tab==="admin")S.tab="latest";
+  S.tgAdmin=ADMIN_IDS.includes(u.id)||ADMIN_USERNAMES.includes((u.username||"").toLowerCase());S.role=S.tgAdmin?"admin":"subscriber";if(!S.tgAdmin&&S.tab==="admin")S.tab="latest";
   const name=[u.first_name,u.last_name].filter(Boolean).join(" ")||"Telegram user";MEH=u.username||("id"+u.id);
   document.querySelectorAll(".acc-name").forEach(el=>el.textContent=name);document.querySelectorAll("aside .avatar,#profileSheet .avatar").forEach(el=>el.textContent=name[0].toUpperCase());
-  const rl=$("refLink");if(rl)rl.textContent="t.me/"+((T.initDataUnsafe.receiver||{}).username||"DirectorTricksBot")+"?start=ref_"+MEH;
+  const rl=$("refLink");if(rl)rl.textContent="t.me/"+((T.initDataUnsafe.receiver||{}).username||"directortricks_bot")+"?start=ref_"+MEH;
   if(S.skin==="auto"&&T.colorScheme==="dark")S.skin="dark";
   const BB=T.BackButton;const syncBack=()=>{(!$("viewer").hidden||openId)?BB.show():BB.hide();};
   BB.onClick(()=>{if(!$("viewer").hidden)$("vClose").click();else openSheet(null);syncBack();});
