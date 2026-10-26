@@ -1016,7 +1016,7 @@ if(window.TGA){const T=window.TGA,u=(T.initDataUnsafe&&T.initDataUnsafe.user)||{
   new MutationObserver(syncBack).observe(document.body,{subtree:true,attributes:true,attributeFilter:["hidden"]});}
 // ---------- live mode: real data from the bot server (stage 2) ----------
 // Set API to the Cloudflare Worker address after deploy. Empty = demo data.
-const API="";
+const API="https://directorstricks-app.onenedie.workers.dev";
 window.LIVE=!!(window.TGA&&API);
 async function call(path,body){try{const r=await fetch(API+"/api"+path,{method:body?"POST":"GET",headers:{authorization:"tma "+window.TGA.initData,"content-type":"application/json"},body:body?JSON.stringify(body):undefined});
   const j=await r.json().catch(()=>({}));if(!r.ok&&!j.error)j.error="HTTP "+r.status;return j;}catch(e){return {error:"no connection"};}}
