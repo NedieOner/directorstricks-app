@@ -1,0 +1,988 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Director Tricks Vault</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: phone = one Telegram-width column; desktop (>=900px) = account sidebar + resource grid, sheets become centred dialogs. Theme: data-skin auto|light|dark on <html>. */
+:root{
+  --bg:#ffffff; --surface:#ffffff; --surface-2:#faf6f6; --line:#ece3e3;
+  --fg:#17100f; --muted:#7b6e6c; --red:#e3262f; --red-deep:#b3121a; --red-glow:rgba(227,38,47,.08);
+  --gold:#c4860f; --ok:#12925a; --on-red:#ffffff; --scrim:rgba(23,16,15,.35); --hero:#fff1f1; --shadow:rgba(23,16,15,.06);
+  --display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+  --body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+@media (prefers-color-scheme:dark){:root[data-skin="auto"]{--bg:#0e0a0b; --surface:#161112; --surface-2:#201819; --line:#33282b; --fg:#f4eeec; --muted:#a3958f; --red-glow:rgba(227,38,47,.16); --gold:#e2a93b; --ok:#3ccf7e; --scrim:rgba(0,0,0,.6); --hero:#2a0c10; --shadow:rgba(0,0,0,.4); color-scheme:dark;}}
+:root[data-skin="dark"]{--bg:#0e0a0b; --surface:#161112; --surface-2:#201819; --line:#33282b; --fg:#f4eeec; --muted:#a3958f; --red-glow:rgba(227,38,47,.16); --gold:#e2a93b; --ok:#3ccf7e; --scrim:rgba(0,0,0,.6); --hero:#2a0c10; --shadow:rgba(0,0,0,.4); color-scheme:dark;}
+html,body{background:var(--bg);color:var(--fg)}
+body{font-family:var(--body);font-size:14px;line-height:1.45;
+  background:var(--bg)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.app{max-width:480px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 96px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:flex;align-items:center;gap:10px;
+  padding:12px 0;background:linear-gradient(var(--bg) 70%,transparent)}
+.logo{font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:.04em;text-transform:uppercase;line-height:1}
+.logo b{color:var(--red)}
+.topbar .sp{flex:1}
+.admin-btn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;display:flex;gap:6px;align-items:center}
+.admin-btn .dot{width:7px;height:7px;border-radius:50%;background:var(--red);box-shadow:0 0 8px var(--red)}
+
+.account{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:18px;padding:16px;
+  background:var(--surface);box-shadow:0 8px 28px var(--shadow)}
+.acc-head{display:flex;gap:12px;align-items:center;position:relative;z-index:1;width:100%;text-align:left;background:none;border:0;padding:0;border-radius:12px}
+.acc-id{min-width:0;flex:1}
+.acc-head .status{margin-left:0}
+.chev{font-size:24px;color:var(--muted);line-height:1}
+.menu{max-height:88vh;overflow-y:auto}
+.menu-head{display:flex;gap:12px;align-items:center}
+.x{margin-left:auto;width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:transparent;font-size:20px;line-height:1}
+.menu-group{margin-top:18px}
+.group-label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.plan-card{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--surface-2);display:grid;gap:8px}
+.plan-card.pro{border-color:var(--gold)}
+.plan-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.plan-name{font-family:var(--display);font-weight:800;font-size:22px;text-transform:uppercase;letter-spacing:.04em}
+.plan-card.pro .plan-name{color:var(--gold)}
+.plan-until{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.plan-bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.plan-bar i{display:block;height:100%;background:var(--gold)}
+.mrow{display:block;width:100%;border:1px solid var(--line);border-radius:12px;background:transparent;margin-top:6px;text-align:left;padding:0}
+.mrow summary,.mrow.plain{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 14px;cursor:pointer;list-style:none}
+.mrow summary::-webkit-details-marker{display:none}
+.mrow[open]{border-color:var(--red)}
+.mi{font-weight:600}
+.mv{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.mv.ok{color:var(--ok)}
+.mbody{padding:0 14px 14px}
+.mbody.ref{margin-top:0}
+.hint{color:var(--muted);font-size:12px;margin:0 0 10px}
+.field{display:flex;gap:8px;margin-top:8px}
+.field input,.date{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;color:var(--fg);font:inherit}
+.err{color:var(--red);font-size:12px;margin-top:6px}
+.link{background:none;border:0;color:var(--muted);text-decoration:underline;font-size:12px;padding:8px 0 0}
+.avatar{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:22px;
+  background:linear-gradient(135deg,var(--red),var(--red-deep));color:var(--on-red);flex:none}
+.acc-name{font-weight:700;font-size:16px}
+.acc-handle{color:var(--muted);font-size:12px}
+.status{margin-left:auto;font-family:var(--display);font-weight:800;text-transform:uppercase;letter-spacing:.08em;font-size:15px;
+  padding:5px 12px;border-radius:999px;border:1px solid var(--red);color:var(--fg);background:var(--red-glow);white-space:nowrap}
+.status.pro{border-color:var(--gold);background:rgba(196,134,15,.1);color:var(--gold)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px;position:relative;z-index:1}
+.stat{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:10px}
+.stat .n{font-family:var(--mono);font-size:18px;font-variant-numeric:tabular-nums}
+.stat .l{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+
+.ref{margin-top:14px;position:relative;z-index:1}
+.ref-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.ref-title{font-weight:700}
+.ref-count{font-family:var(--mono);color:var(--muted);font-size:12px}
+.ladder{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin:10px 0 6px}
+.ladder i{height:6px;border-radius:3px;background:var(--line)}
+.ladder i.on{background:var(--red);box-shadow:0 0 8px var(--red-glow)}
+.ref-steps{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+.ref-steps span.on{color:var(--fg)}
+.invite{display:flex;gap:8px;margin-top:12px}
+.invite code{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);font-size:12px;
+  background:var(--surface-2);border:1px dashed var(--line);border-radius:10px;padding:10px}
+.btn{border:0;border-radius:10px;padding:10px 14px;font-weight:700;background:var(--red);color:#fff}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--fg)}
+.btn.gold{background:var(--gold);color:var(--on-red)}
+
+.tabs{display:flex;gap:6px;overflow-x:auto;margin:18px -4px 0;padding:0 4px 4px;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:8px 14px;
+  font-family:var(--display);font-weight:800;font-size:17px;letter-spacing:.05em;text-transform:uppercase}
+.tab[aria-selected="true"]{background:var(--red);border-color:var(--red);color:var(--on-red)}
+.search{margin-top:12px;width:100%;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:11px 14px;color:var(--fg);font:inherit}
+.search::placeholder{color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{border:1px solid var(--line);background:transparent;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;color:var(--muted)}
+.chip[aria-pressed="true"]{color:var(--fg);border-color:var(--red);background:var(--red-glow)}
+
+.section-label{display:flex;justify-content:space-between;margin:18px 0 8px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+.list{display:grid;gap:10px}
+.item{display:grid;grid-template-columns:64px 1fr auto;gap:12px;align-items:center;border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:10px}
+.thumb{width:64px;height:64px;border-radius:10px;position:relative;overflow:hidden;display:grid;place-items:center;
+  font-family:var(--display);font-weight:800;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.85)}
+.thumb.new::after{content:"NEW";position:absolute;top:4px;left:4px;font-size:9px;background:var(--red);padding:1px 4px;border-radius:4px;font-family:var(--mono)}
+.item-main{min-width:0}
+.item-name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-meta{color:var(--muted);font-size:12px;display:flex;flex-wrap:wrap;gap:4px 8px;margin-top:2px}
+.tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border:1px solid var(--line);border-radius:6px;padding:1px 6px;color:var(--muted)}
+.get{min-width:84px;text-align:center;font-size:12px;padding:8px 10px}
+.get.locked{background:transparent;border:1px solid var(--line);color:var(--muted);font-weight:600}
+.get.done{background:transparent;border:1px solid var(--ok);color:var(--ok)}
+.empty{color:var(--muted);text-align:center;padding:28px 0}
+
+.course-hero{border:1px solid var(--line);border-radius:16px;padding:16px;background:linear-gradient(160deg,var(--hero),var(--surface))}
+.course-hero h2{font-family:var(--display);font-weight:800;font-size:28px;text-transform:uppercase;margin:0;line-height:1;text-wrap:balance}
+.course-hero p{color:var(--muted);margin:8px 0 12px}
+.progress{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.progress i{display:block;height:100%;background:var(--red)}
+.lesson{display:grid;grid-template-columns:32px 1fr auto;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.lesson .num{font-family:var(--mono);color:var(--muted);font-size:12px}
+.lesson .lname{font-weight:600}
+.lesson .ldur{color:var(--muted);font-size:12px}
+.lock{font-size:12px;color:var(--muted)}
+.lock.open{color:var(--ok)}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;
+  background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;transition:.25s;z-index:40;pointer-events:none;max-width:calc(100% - 32px)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+.sheet-bg{position:fixed;inset:0;background:var(--scrim);z-index:20}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;max-width:480px;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-bottom:0;
+  border-radius:20px 20px 0 0;padding:18px max(16px,env(safe-area-inset-left,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-right,0px))}
+.sheet h3{margin:0;font-family:var(--display);font-weight:800;font-size:24px;text-transform:uppercase;letter-spacing:.04em}
+.sheet .hint{color:var(--muted);font-size:12px;margin:4px 0 14px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.seg button{border:1px solid var(--line);background:transparent;border-radius:10px;padding:10px 6px;font-weight:700;font-size:13px}
+.seg button[aria-pressed="true"]{background:var(--red);border-color:var(--red);color:var(--on-red)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px}
+.row label{font-weight:600}
+.row output{font-family:var(--mono)}
+input[type=range]{width:100%;accent-color:var(--red);margin-top:8px}
+.matrix{margin-top:16px;border-top:1px solid var(--line);padding-top:12px;display:grid;gap:6px;font-size:12px}
+.matrix div{display:flex;justify-content:space-between;gap:8px}
+.matrix span:last-child{font-family:var(--mono)}
+.thumb{border:0;cursor:zoom-in}
+.thumb .play{position:absolute;right:4px;bottom:4px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.55);display:grid;place-items:center;font-size:8px}
+.viewer{position:fixed;inset:0;z-index:35;background:var(--bg);display:flex;flex-direction:column;
+  padding:env(safe-area-inset-top,0px) max(16px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(16px,env(safe-area-inset-left,0px))}
+.v-top{display:flex;align-items:center;gap:10px;padding:12px 0}
+.v-title{font-weight:700;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v-kind{font-family:var(--mono);font-size:11px;color:var(--muted);text-transform:uppercase}
+.stage{flex:1;display:grid;place-items:center;min-height:0}
+.frame{position:relative;width:100%;max-width:960px;aspect-ratio:16/9;max-height:100%;border-radius:12px;overflow:hidden;background:var(--surface-2);border:1px solid var(--line);touch-action:none}
+.frame svg{position:absolute;inset:0;width:100%;height:100%}
+.frame .after{position:absolute;inset:0;clip-path:inset(0 0 0 50%)}
+.frame .handle{position:absolute;top:0;bottom:0;left:50%;width:2px;background:#fff;transform:translateX(-1px)}
+.frame .handle::after{content:"⟷";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;color:#000;border-radius:50%;width:32px;height:32px;display:grid;place-items:center;font-size:14px}
+.badge{position:absolute;top:10px;font-family:var(--mono);font-size:10px;background:rgba(0,0,0,.6);color:#fff;padding:3px 6px;border-radius:4px}
+.leak{position:absolute;inset:-20%;mix-blend-mode:screen;opacity:.85;animation:leak 4s ease-in-out infinite alternate}
+@keyframes leak{from{transform:translateX(-25%) rotate(-8deg)}to{transform:translateX(25%) rotate(8deg)}}
+.grain{position:absolute;inset:0;opacity:.35;mix-blend-mode:overlay;animation:grain .3s steps(3) infinite}
+@keyframes grain{0%{transform:translate(0,0)}50%{transform:translate(-3%,2%)}100%{transform:translate(2%,-2%)}}
+.shake{animation:shake .6s ease-in-out infinite}
+@keyframes shake{0%,100%{transform:translate(0,0) scale(1.06)}25%{transform:translate(-2%,1%) scale(1.06) rotate(-1deg)}75%{transform:translate(2%,-1%) scale(1.06) rotate(1deg)}}
+.wave{display:flex;align-items:center;gap:3px;height:60%;width:86%;margin:auto;position:absolute;inset:0}
+.wave i{flex:1;background:var(--red);border-radius:2px;opacity:.85}
+.wave.on i{animation:pulse .5s ease-in-out infinite alternate}
+@keyframes pulse{to{opacity:.35}}
+.v-bottom{display:flex;gap:10px;align-items:center;padding:14px 0}
+.v-meta{flex:1;min-width:0;color:var(--muted);font-size:12px}
+.v-meta b{color:var(--fg);display:block;font-size:13px}
+.v-hint{color:var(--muted);font-size:12px;text-align:center;padding-top:8px}
+.icon-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;font-size:15px;line-height:1}
+.demo-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;padding:8px 12px;border-radius:10px;background:var(--red-glow);border:1px dashed var(--red);font-size:12px}
+.demo-bar button{background:none;border:0;color:var(--red);font-weight:700;padding:0}
+.seg.three{grid-template-columns:repeat(3,1fr)}
+.layout{display:block}
+@media (min-width:700px){
+  .sheet{top:50%;bottom:auto;left:50%;right:auto;width:min(480px,calc(100% - 32px));transform:translate(-50%,-50%);border:1px solid var(--line);border-radius:20px;max-height:86vh;overflow-y:auto;padding-bottom:20px}
+}
+@media (min-width:900px){
+  .app{max-width:1280px;padding-left:max(32px,env(safe-area-inset-left,0px));padding-right:max(32px,env(safe-area-inset-right,0px))}
+  .layout{display:grid;grid-template-columns:320px minmax(0,1fr);gap:28px;align-items:start}
+  .side{position:sticky;top:calc(64px + env(safe-area-inset-top,0px))}
+  .side .stats{grid-template-columns:1fr}
+  .side .stat{display:flex;justify-content:space-between;align-items:baseline}
+  .tabs{margin-top:0;flex-wrap:wrap;overflow:visible}
+  .list{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}
+  .item{grid-template-columns:88px 1fr auto}
+  .thumb{width:88px;height:88px}
+  .course-hero h2{font-size:40px}
+}
+.edit-btn{position:absolute;top:-8px;right:-8px;width:26px;height:26px;border-radius:50%;border:1px solid var(--red);background:var(--surface);color:var(--red);font-size:13px;line-height:1;display:grid;place-items:center;z-index:2}
+.item{position:relative}
+.item.hidden-item{opacity:.55;border-style:dashed}
+.adm-nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.adm-nav button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 14px;font-weight:600;font-size:13px}
+.adm-nav button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.adm-nav .count{display:inline-block;min-width:18px;margin-left:6px;padding:0 5px;border-radius:9px;background:var(--red);color:var(--on-red);font-size:11px;font-family:var(--mono)}
+.sample{font-family:var(--mono);font-size:10px;color:var(--muted);border:1px dashed var(--line);border-radius:6px;padding:2px 6px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.kpi{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface)}
+.kpi .n{font-family:var(--mono);font-size:22px;font-variant-numeric:tabular-nums}
+.kpi .l{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.kpi.alert{border-color:var(--red)}
+.card{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--surface);margin-top:12px}
+.card h4{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.bars{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:end;height:110px}
+.bars div{display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
+.bars i{display:block;width:100%;max-width:36px;background:var(--red);border-radius:6px 6px 2px 2px;min-height:3px}
+.bars span{font-size:10px;color:var(--muted);font-family:var(--mono)}
+.bars b{font-size:11px;font-family:var(--mono);font-weight:500}
+.feed{display:grid;gap:6px;font-size:13px}
+.feed div{display:flex;gap:8px;min-width:0}
+.feed time{font-family:var(--mono);color:var(--muted);font-size:11px;flex:none;padding-top:2px}
+.ulist{display:grid;gap:6px}
+.urow{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:8px 10px;background:var(--surface);text-align:left;width:100%}
+.urow .avatar,.uprof .avatar{width:36px;height:36px;font-size:16px}
+.urow .un{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.urow .uh{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill{font-size:11px;font-weight:700;border-radius:999px;padding:3px 9px;border:1px solid var(--line);white-space:nowrap}
+.pill.pro{border-color:var(--gold);color:var(--gold)}
+.pill.pend{border-color:var(--red);color:var(--red)}
+.udetail{display:grid;gap:12px}
+@media (min-width:900px){.udetail{grid-template-columns:280px minmax(0,1fr)}}
+.uprof{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--surface);display:grid;gap:10px;align-content:start}
+.uprof .row1{display:flex;gap:10px;align-items:center}
+.kv{display:grid;gap:6px;font-size:13px}
+.kv div{display:flex;justify-content:space-between;gap:8px}
+.kv span:first-child{color:var(--muted)}
+.btn.sm{padding:8px 10px;font-size:12px}
+.btnrow{display:flex;gap:6px;flex-wrap:wrap}
+.term{background:#0d100f;color:#d3e2da;border-radius:14px;border:1px solid #1f2a25;font-family:var(--mono);font-size:12px;display:flex;flex-direction:column;min-height:360px;max-height:520px}
+.term-head{display:flex;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid #1f2a25;color:#7d9087}
+.term-body{flex:1;overflow-y:auto;padding:10px 12px;display:grid;gap:3px;align-content:start}
+.tl{white-space:pre-wrap;word-break:break-word}
+.tl .tt{color:#5f7068}
+.tl.bot{color:#62c6ff}
+.tl.admin{color:#ff7a7a}
+.tl.sys{color:#e6c35c}
+.term form{display:flex;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid #1f2a25}
+.term form span{color:#3ccf7e}
+.term input{flex:1;min-width:0;background:transparent;border:0;color:#d3e2da;font:inherit;outline:none}
+.term input::placeholder{color:#55655d}
+.pay-q{display:grid;gap:10px}
+.pq{display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;border:1px solid var(--line);border-radius:14px;padding:10px;background:var(--surface)}
+.pq .shot{width:72px;height:96px;border-radius:8px;background:var(--surface-2);background-size:cover;background-position:center;border:1px solid var(--line);display:grid;place-items:center;font-size:10px;color:var(--muted)}
+.pq .pt{font-weight:700}
+.pq .pm{color:var(--muted);font-size:12px;margin:2px 0 8px}
+.cal-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+.cal-head b{font-family:var(--display);font-size:22px;text-transform:uppercase;letter-spacing:.04em}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cal .dow{font-size:10px;color:var(--muted);text-align:center;text-transform:uppercase;letter-spacing:.06em;padding:4px 0}
+.cal button{aspect-ratio:1/1;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:4px;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;font-family:var(--mono);font-size:12px;min-width:0}
+.cal button.out{opacity:.35}
+.cal button.today{border-color:var(--fg)}
+.cal button[aria-pressed="true"]{border-color:var(--red);background:var(--red-glow)}
+.dots{display:flex;gap:2px;flex-wrap:wrap}
+.dots i{width:6px;height:6px;border-radius:50%}
+@media (min-width:900px){.cal button{aspect-ratio:auto;height:72px}.dots i{width:8px;height:8px}}
+.sched-row{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.sched-row i{width:10px;height:10px;border-radius:50%}
+.sched-row .sn{font-weight:600}
+.sched-row .sm{color:var(--muted);font-size:12px}
+.sched-row select,.sched-row input,.form select,.form input,.form textarea{border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:8px;padding:7px 8px;font:inherit;font-size:13px;min-width:0}
+.form{display:grid;gap:10px}
+.form label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:600}
+.form textarea{min-height:110px;resize:vertical}
+.form .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.form .check{display:flex;gap:8px;align-items:center;color:var(--fg);font-weight:600;font-size:13px}
+.bubble{background:var(--surface-2);border:1px solid var(--line);border-radius:14px 14px 14px 4px;padding:10px 12px;white-space:pre-wrap;word-break:break-word;font-size:13px}
+.btn.get.shop{background:var(--fg);color:var(--bg)}.tag.partner{color:var(--red);border-color:var(--red)}
+.sopen{border:0;background:none;padding:0;text-align:left;font:inherit;color:inherit;cursor:pointer}.sopen:hover .sn{color:var(--red)}
+.res-prev{height:180px;border-radius:12px;margin:12px 0 10px;display:grid;place-items:center;color:#fff;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.res-name{margin:0 0 6px;font-size:17px}.kvs{display:grid;margin-top:10px;border-top:1px solid var(--line)}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}.kv span{color:var(--muted)}.kv b{text-align:right;font-weight:600;word-break:break-all}.kv .none{color:var(--muted);font-weight:400}
+.src h4 small{color:var(--muted);font-weight:500;margin-left:6px}.src .sm{font-size:12px;color:var(--muted)}
+.when{display:grid;gap:8px}.when .wl{font-size:12px;color:var(--muted);font-weight:600}.when .wl span{color:var(--fg)}
+.wq,.wtimes{display:flex;flex-wrap:wrap;gap:6px}.wq .chip,.wtimes .chip{margin:0}.wtimes .chip:disabled{opacity:.35}
+.wdays{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+.wdays button{flex:0 0 52px;display:grid;justify-items:center;gap:1px;padding:6px 0;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);font:inherit;cursor:pointer}
+.wdays button small{font-size:10px;color:var(--muted)}.wdays button b{font-size:16px}
+.wdays button[aria-pressed="true"]{background:var(--red);border-color:var(--red);color:var(--on-red)}.wdays button[aria-pressed="true"] small{color:var(--on-red)}
+.when .wh{font-size:12px;color:var(--muted)}
+.bubble .bb{margin-top:8px;text-align:center;border:1px solid var(--line);border-radius:8px;padding:6px;color:var(--red);font-weight:600}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:8px}
+.legend span{display:flex;gap:4px;align-items:center}
+.legend i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.promo-big{font-family:var(--display);font-weight:800;font-size:84px;line-height:.9;color:var(--red);letter-spacing:.01em}
+.price-opts{display:grid;gap:8px}
+.opt{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface);text-align:left;width:100%}
+.opt[aria-pressed="true"]{border-color:var(--red);box-shadow:0 0 0 1px var(--red) inset}
+.opt .on{font-weight:700}
+.opt .os{color:var(--muted);font-size:12px}
+.opt s{color:var(--muted);font-size:12px;margin-right:6px}
+.opt .op{font-family:var(--mono);font-weight:500;white-space:nowrap}
+.disc-banner{background:var(--red-glow);border:1px solid var(--red);border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600;margin-top:10px}
+.wallet{display:flex;gap:8px;margin-top:8px}
+.wallet code{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);font-size:12px;background:var(--surface-2);border:1px dashed var(--line);border-radius:10px;padding:10px}
+.upload{display:block;margin-top:10px;border:1.5px dashed var(--red);border-radius:12px;padding:16px;text-align:center;font-weight:700;color:var(--red);cursor:pointer}
+.upload input{position:absolute;opacity:0;width:1px;height:1px}
+.review{border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:10px;background:var(--surface-2)}
+.review .mini{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:6px;display:grid;gap:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+
+
+<div class="app">
+  <header class="topbar">
+    <div class="logo">Director <b>Tricks</b></div>
+    <div class="sp"></div>
+    <button class="icon-btn" id="skinBtn" aria-label="Switch light or dark style">☾</button>
+    <button class="admin-btn" id="adminOpen" aria-label="Preview statuses"><span class="dot"></span>View as</button>
+  </header>
+
+  <div class="demo-bar" id="demoBar" hidden><span>Previewing as a subscriber. The Admin button is hidden.</span><button id="demoExit">Back to admin</button></div>
+  <div class="layout"><aside class="side">
+  <section class="account" aria-label="Your account">
+    <button class="acc-head" id="profileOpen" aria-label="Open profile menu">
+      <div class="avatar" aria-hidden="true">A</div>
+      <div class="acc-id"><div class="acc-name">Alex Moreno</div><div class="acc-handle" id="accSub">@alexcuts · Free plan</div></div>
+      <div class="status" id="statusPill">Viewer</div>
+      <span class="chev" aria-hidden="true">›</span>
+    </button>
+    <div class="stats">
+      <div class="stat"><div class="n" id="stUnlocked">0</div><div class="l">Unlocked</div></div>
+      <div class="stat"><div class="n" id="stGot">0</div><div class="l">Downloaded</div></div>
+      <div class="stat"><div class="n" id="stValue">$0</div><div class="l">Value saved</div></div>
+    </div>
+  </section>
+  </aside>
+  <main class="main">
+  <nav class="tabs" role="tablist" id="tabs"></nav>
+  <div id="panel"></div>
+  </main></div>
+</div>
+
+<section class="viewer" id="viewer" hidden aria-label="Resource preview">
+  <div class="v-top"><div class="v-title" id="vTitle"></div><span class="v-kind" id="vKind"></span><button class="x" id="vClose" aria-label="Close preview">×</button></div>
+  <div class="stage"><div class="frame" id="vFrame"></div></div>
+  <div class="v-hint" id="vHint"></div>
+  <div class="v-bottom"><div class="v-meta" id="vMeta"></div><div id="vAction"></div></div>
+</section>
+
+<section class="sheet menu" id="promoSheet" hidden aria-label="Welcome offer">
+  <div class="menu-head"><span class="sample">New member offer</span><button class="x" data-close aria-label="Close">×</button></div>
+  <div class="promo-big" style="margin-top:14px">−15%</div>
+  <h3 style="margin-top:8px">on your first Pro plan</h3>
+  <p class="hint" style="margin-top:8px">Welcome to Director Tricks. Pro opens every LUT, overlay, SFX pack and the full course. The discount is yours for the next 48 hours.</p>
+  <button class="btn" id="promoGet" style="width:100%;margin-top:6px">Get the discount</button>
+  <button class="btn ghost" data-close style="width:100%;margin-top:8px">Maybe later</button>
+</section>
+
+<section class="sheet menu" id="paySheet" hidden aria-label="Get Pro">
+  <div class="menu-head"><h3>Get Pro</h3><button class="x" data-close aria-label="Close">×</button></div>
+  <div id="payBody"></div>
+</section>
+
+<section class="sheet menu" id="editSheet" hidden aria-label="Edit resource">
+  <div class="menu-head"><h3 id="editTitle">Edit resource</h3><button class="x" data-close aria-label="Close">×</button></div>
+  <div id="editBody"></div>
+</section>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<div class="sheet-bg" id="sheetBg" hidden></div>
+<section class="sheet menu" id="profileSheet" hidden aria-label="Profile menu">
+  <div class="menu-head">
+    <div class="avatar" aria-hidden="true">A</div>
+    <div class="acc-id"><div class="acc-name">Alex Moreno</div><div class="acc-handle">@alexcuts · member since Oct 2026</div></div>
+    <button class="x" id="profileClose" aria-label="Close menu">×</button>
+  </div>
+
+  <div class="menu-group">
+    <div class="group-label">Plan</div>
+    <div class="plan-card" id="planCard"></div>
+  </div>
+
+  <div class="menu-group">
+    <div class="group-label">Contacts</div>
+    <details class="mrow" id="phoneRow">
+      <summary><span class="mi">Phone</span><span class="mv" id="phoneVal">Not connected</span></summary>
+      <div class="mbody">
+        <p class="hint">Used to restore access to your purchases. We never call or text.</p>
+        <button class="btn" id="phoneShare" style="width:100%">Share phone from Telegram</button>
+        <div class="field"><input id="phoneIn" type="tel" inputmode="tel" placeholder="+1 415 555 0142" aria-label="Phone number"><button class="btn ghost" id="phoneSave">Save</button></div>
+        <button class="link" id="phoneRemove" hidden>Disconnect phone</button>
+      </div>
+    </details>
+    <details class="mrow" id="emailRow">
+      <summary><span class="mi">Email</span><span class="mv" id="emailVal">Not connected</span></summary>
+      <div class="mbody">
+        <p class="hint">Receipts, Pro renewal reminders and new-release drops.</p>
+        <div class="field"><input id="emailIn" type="email" placeholder="you@studio.com" aria-label="Email"><button class="btn" id="emailSave">Save</button></div>
+        <div class="err" id="emailErr" hidden>Enter an email like name@domain.com</div>
+        <button class="link" id="emailRemove" hidden>Disconnect email</button>
+      </div>
+    </details>
+  </div>
+
+  <div class="menu-group">
+    <div class="group-label">More</div>
+    <details class="mrow">
+      <summary><span class="mi">Invite friends</span><span class="mv" id="refShort">0 / 5</span></summary>
+      <div class="mbody ref" id="refBlock">
+        <div class="ref-top"><div class="ref-title" id="refTitle">Invite friends, unlock packs</div><div class="ref-count" id="refCount">0 / 5</div></div>
+        <div class="ladder" id="ladder"><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="ref-steps"><span data-k="1">1 · Insider</span><span data-k="3">3 · Crew</span><span data-k="5">5 · Director</span></div>
+        <div class="invite"><code id="refLink">t.me/DirectorTricksBot?start=ref_alexcuts</code><button class="btn" id="copyBtn">Copy</button></div>
+      </div>
+    </details>
+    <div class="mrow plain" style="cursor:default"><span class="mi">Style</span>
+      <div class="seg three" id="skinSeg" style="width:200px"><button data-skin="auto">Auto</button><button data-skin="light">Light</button><button data-skin="dark">Dark</button></div></div>
+    <button class="mrow plain" data-toast="Support chat opens here in the real bot"><span class="mi">Support</span><span class="mv">›</span></button>
+  </div>
+</section>
+<section class="sheet" id="sheet" hidden aria-label="Admin preview">
+  <h3>View as</h3>
+  <div class="hint">Switch the viewer's status to see what each user sees. Only you see this panel.</div>
+  <div class="seg" id="planSeg">
+    <button data-plan="free" aria-pressed="true">Free</button>
+    <button data-plan="pro" aria-pressed="false">Pro</button>
+    <button data-plan="reset" aria-pressed="false">Reset</button>
+  </div>
+  <div class="row"><label for="inv">Friends invited</label><output id="invOut">0</output></div>
+  <input type="range" id="inv" min="0" max="5" step="1" value="0">
+  <div class="row" id="untilRow"><label for="untilIn">Pro valid until</label><input type="date" id="untilIn" class="date"></div>
+  <div class="matrix" id="matrix"></div>
+  <div class="row"><button class="btn" id="asSub" style="width:100%">Preview as a subscriber</button></div>
+  <div class="row"><button class="btn ghost" id="promoAgain" style="width:100%">Show the new-user −15% offer</button></div>
+  <div class="row"><button class="btn ghost" id="sheetClose" style="width:100%">Done</button></div>
+</section>
+
+<script>
+const TABS=[
+  {id:"latest",label:"Latest"},
+  {id:"plugins",label:"Plugins",filters:["Photoshop","After Effects","Premiere Pro","DaVinci Resolve","Final Cut Pro"]},
+  {id:"overlays",label:"Overlays",filters:["Transitions","Film & retro","VFX elements","Titles","Textures & PNG","Light leaks","Glitch","Packs"]},
+  {id:"sfx",label:"SFX",filters:["Whooshes","Impacts","Risers","Ambience","Sound packs"]},
+  {id:"luts",label:"LUTs",filters:["Film emulation","Music video","Log to Rec.709","Lightroom presets","Teal & orange","Black & white"]},
+  {id:"course",label:"Course"},
+  {id:"ai",label:"AI",pub:true,filters:["Prompts","Workflows","Higgsfield","Seedance","Midjourney","Voice"]}
+];
+// tier: 0 free, 1/3/5 = friends needed, 9 = Pro only
+const ITEMS=[
+  {id:1,cat:"luts",name:"Neon Noir LUT pack",f:"Music video",soft:["Premiere Pro","DaVinci Resolve"],size:"12 MB",n:"18 LUTs .cube",tier:0,val:19,date:"2026-10-22",g:["#4a0d6b","#e3262f"]},
+  {id:2,cat:"plugins",name:"Shake Pro presets",f:"After Effects",soft:["After Effects"],size:"4 MB",n:"40 presets",tier:1,val:29,date:"2026-10-21",g:["#2b0a0f","#ff5a36"]},
+  {id:3,cat:"overlays",name:"35mm Burn transitions",f:"Light leaks",soft:["4K","ProRes"],size:"1.2 GB",n:"24 clips",tier:3,val:49,date:"2026-10-20",g:["#ff8a00","#8e0f16"]},
+  {id:4,cat:"sfx",name:"Cinematic whoosh kit",f:"Whooshes",soft:["WAV 48k"],size:"210 MB",n:"120 sounds",tier:0,val:15,date:"2026-10-19",g:["#151b3a","#3b6cff"]},
+  {id:5,cat:"plugins",name:"Retouch actions",f:"Photoshop",soft:["Photoshop"],size:"18 MB",n:"25 actions",tier:1,val:25,date:"2026-10-18",g:["#30212a","#c98f9f"]},
+  {id:6,cat:"luts",name:"Kodak 2383 emulation",f:"Film emulation",soft:["DaVinci Resolve"],size:"6 MB",n:"6 LUTs .cube",tier:3,val:35,date:"2026-10-16",g:["#3a2a12","#e8b04a"]},
+  {id:7,cat:"overlays",name:"Super 8 grain",f:"Film & retro",soft:["4K"],size:"860 MB",n:"12 clips",tier:0,val:12,date:"2026-10-15",g:["#3b3b3b","#9a9a9a"]},
+  {id:8,cat:"sfx",name:"Glitch & data hits",f:"Glitch",soft:["WAV 48k"],size:"95 MB",n:"80 sounds",tier:1,val:19,date:"2026-10-14",g:["#09312a","#25e3a5"]},
+  {id:9,cat:"plugins",name:"Music video transitions",f:"Premiere Pro",soft:["Premiere Pro"],size:"320 MB",n:"60 transitions",tier:5,val:79,date:"2026-10-12",g:["#1d0a2b","#e3262f"]},
+  {id:10,cat:"plugins",name:"Color node trees",f:"DaVinci Resolve",soft:["DaVinci Resolve"],size:"2 MB",n:"14 .drx",tier:5,val:59,date:"2026-10-10",g:["#0e2a3a","#ff7a3d"]},
+  {id:11,cat:"overlays",name:"VHS glitch overlays",f:"Glitch",soft:["4K","Alpha"],size:"740 MB",n:"30 clips",tier:3,val:29,date:"2026-10-08",g:["#20093a","#00e0ff"]},
+  {id:12,cat:"sfx",name:"Bass impacts & risers",f:"Impacts",soft:["WAV 48k"],size:"160 MB",n:"70 sounds",tier:3,val:25,date:"2026-10-06",g:["#2a0606","#e3262f"]},
+  {id:13,cat:"luts",name:"Teal & orange blockbuster",f:"Teal & orange",soft:["Premiere Pro","Final Cut Pro"],size:"5 MB",n:"10 LUTs .cube",tier:1,val:19,date:"2026-10-04",g:["#0b4f5c","#ff8a3d"]},
+  {id:14,cat:"luts",name:"Silver B&W",f:"Black & white",soft:["All editors"],size:"3 MB",n:"8 LUTs .cube",tier:0,val:9,date:"2026-10-02",g:["#111","#d9d9d9"]},
+  {id:15,cat:"luts",name:"Log to Rec.709 kit",f:"Log to Rec.709",soft:["S-Log3","V-Log","C-Log"],size:"4 MB",n:"12 LUTs .cube",tier:9,val:39,date:"2026-09-30",g:["#2a2a33","#6c7bff"]},
+  {id:16,cat:"overlays",name:"Fire & ember elements",f:"VFX elements",soft:["4K","Alpha"],size:"2.1 GB",n:"40 clips",tier:9,val:69,date:"2026-09-28",g:["#3a0e00","#ff6a00"]},
+  {id:17,cat:"plugins",name:"Edit templates for FCP",f:"Final Cut Pro",soft:["Final Cut Pro"],size:"280 MB",n:"30 templates",tier:9,val:49,date:"2026-09-25",g:["#1c1c1c","#b3b3b3"]},
+  {id:18,cat:"sfx",name:"Night city ambience",f:"Ambience",soft:["WAV 48k"],size:"410 MB",n:"24 loops",tier:9,val:29,date:"2026-09-22",g:["#0a1530","#5a2bff"]},
+  {id:19,cat:"sfx",name:"Tension risers",f:"Risers",soft:["WAV 48k"],size:"120 MB",n:"36 sounds",tier:5,val:25,date:"2026-09-20",g:["#2b0a0f","#ff3d6a"]},
+  {id:20,cat:"overlays",name:"Dust & scratches 16mm",f:"Film & retro",soft:["4K"],size:"620 MB",n:"18 clips",tier:1,val:19,date:"2026-09-18",g:["#2a241c","#c9b38a"]},
+  {id:21,cat:"ai",name:"Music video prompt pack",f:"Prompts",soft:["Any model"],size:"PDF",n:"60 prompts",tier:0,val:15,date:"2026-10-23",g:["#06362a","#12a37a"]},
+  {id:22,cat:"ai",name:"One-take camera route",f:"Seedance",soft:["Seedance 2.0"],size:"Guide",n:"8 shots",tier:0,val:12,date:"2026-10-21",g:["#0b2a3a","#2bd4c4"]},
+  {id:23,cat:"ai",name:"Consistent character workflow",f:"Workflows",soft:["Higgsfield","Midjourney"],size:"Guide",n:"12 steps",tier:0,val:19,date:"2026-10-19",g:["#1a1440","#7a5cff"]},
+  {id:24,cat:"ai",name:"Cinematic stills · lighting presets",f:"Midjourney",soft:["Midjourney v7"],size:"PDF",n:"40 prompts",tier:0,val:12,date:"2026-10-16",g:["#2a1a08","#e0a040"]},
+  {id:25,cat:"ai",name:"Image → video moves",f:"Higgsfield",soft:["Higgsfield"],size:"Guide",n:"20 presets",tier:0,val:15,date:"2026-10-12",g:["#300a20","#ff4fa0"]},
+  {id:26,cat:"ai",name:"Voice-over in 5 minutes",f:"Voice",soft:["ElevenLabs"],size:"Guide",n:"6 steps",tier:0,val:9,date:"2026-10-08",g:["#13202a","#6aa8d8"]}
+];
+// partner showcase imported from the channel export: preview + official store / affiliate link, no files
+ITEMS.push(...[{"id":100,"cat":"overlays","name":"Paper Backgrounds MOGRT","f":"Textures & PNG","soft":[],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p82.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#2a1a08","#e0a040"],"link":""},{"id":101,"cat":"overlays","name":"Cutout Craft for After Effects","f":"Textures & PNG","soft":[],"size":"","n":"Partner","brand":"Partner","shop":1,"img":null,"vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#1a1440","#7a5cff"],"link":""},{"id":102,"cat":"overlays","name":"CinePacks – Dirty Film FX","f":"Film & retro","soft":[],"size":"","n":"CinePacks","brand":"CinePacks","shop":1,"img":"img/p84.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#06362a","#12a37a"],"link":""},{"id":103,"cat":"overlays","name":"Ransom Note Letters","f":"Packs","soft":[],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p87.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#300a20","#ff4fa0"],"link":""},{"id":104,"cat":"plugins","name":"JerryBundle - JerryFlow and JerryShakes","f":"After Effects","soft":[],"size":"","n":"JerryBundle","brand":"JerryBundle","shop":1,"img":"img/p90.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#1c1c1c","#9a9a9a"],"link":""},{"id":105,"cat":"plugins","name":"FredPelle - Rollback8 Pro","f":"After Effects","soft":[],"size":"","n":"FredPelle","brand":"FredPelle","shop":1,"img":"img/p91.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#2a0c10","#e3262f"],"link":""},{"id":106,"cat":"overlays","name":"Cinepacks - Money FX","f":"VFX elements","soft":[],"size":"","n":"CinePacks","brand":"CinePacks","shop":1,"img":"img/p92.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#10203a","#2b7bff"],"link":""},{"id":107,"cat":"overlays","name":"Instagram Elements | Frosted Glass Cards","f":"Packs","soft":[],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p93.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#2a1a08","#e0a040"],"link":""},{"id":108,"cat":"sfx","name":"Acidbite - Urban SFX","f":"Sound packs","soft":[],"size":"","n":"AcidBite","brand":"AcidBite","shop":1,"img":"img/p94.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#1a1440","#7a5cff"],"link":""},{"id":109,"cat":"luts","name":"The One LUT - iPhone 15 Pro Apple Log","f":"Log to Rec.709","soft":[],"size":"","n":"The One LUT","brand":"The One LUT","shop":1,"img":"img/p95.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#06362a","#12a37a"],"link":""},{"id":110,"cat":"overlays","name":"AcidBite - Film Leaders 4K (Full)","f":"Film & retro","soft":[],"size":"","n":"AcidBite","brand":"AcidBite","shop":1,"img":"img/p96.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#300a20","#ff4fa0"],"link":""},{"id":111,"cat":"luts","name":"Acidbite - Gritty LUTs","f":"Film emulation","soft":[],"size":"","n":"AcidBite","brand":"AcidBite","shop":1,"img":"img/p97.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#1c1c1c","#9a9a9a"],"link":""},{"id":112,"cat":"plugins","name":"Fredpelle. TV - MATRIX","f":"After Effects","soft":["After Effects"],"size":"","n":"FredPelle","brand":"FredPelle","shop":1,"img":"img/p98.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#2a0c10","#e3262f"],"link":""},{"id":113,"cat":"plugins","name":"FredPelle - MXM Plugin for After Effects","f":"After Effects","soft":["After Effects"],"size":"","n":"FredPelle","brand":"FredPelle","shop":1,"img":"img/p99.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#10203a","#2b7bff"],"link":""},{"id":114,"cat":"overlays","name":"Hip Hop Reels for After Effects","f":"Packs","soft":["After Effects"],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p101.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#2a1a08","#e0a040"],"link":""},{"id":115,"cat":"luts","name":"Cinematic Memories - Obscura","f":"Film emulation","soft":[],"size":"","n":"Cinematic Memories","brand":"Cinematic Memories","shop":1,"img":"img/p102.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#1a1440","#7a5cff"],"link":""},{"id":116,"cat":"overlays","name":"Creative Market - Pens Kit","f":"Textures & PNG","soft":["Photoshop"],"size":"","n":"Creative Market","brand":"Creative Market","shop":1,"img":"img/p105.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#06362a","#12a37a"],"link":""},{"id":117,"cat":"overlays","name":"Mixed Media Transitions MOGRT","f":"Transitions","soft":["Premiere Pro","After Effects"],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p106.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#300a20","#ff4fa0"],"link":""},{"id":118,"cat":"plugins","name":"Aescripts - AutoFill v2.0.1","f":"After Effects","soft":["After Effects"],"size":"","n":"Aescripts","brand":"Aescripts","shop":1,"img":"img/p107.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#1c1c1c","#9a9a9a"],"link":""},{"id":119,"cat":"overlays","name":"Payhip - Imag9's Editing Pack v3","f":"Packs","soft":["After Effects"],"size":"","n":"Payhip","brand":"Payhip","shop":1,"img":"img/p108.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#2a0c10","#e3262f"],"link":""},{"id":120,"cat":"overlays","name":"Tropic Colour - Cinematic Titles Vol 2","f":"Titles","soft":["Premiere Pro","After Effects","Photoshop"],"size":"","n":"Tropic Colour","brand":"Tropic Colour","shop":1,"img":"img/p109.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#10203a","#2b7bff"],"link":""},{"id":121,"cat":"luts","name":"Cult film LUT collection","f":"Film emulation","soft":["After Effects","Premiere Pro","DaVinci Resolve"],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p110.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#2a1a08","#e0a040"],"link":""},{"id":122,"cat":"overlays","name":"Bryan Delimata - Film Frame Transitions","f":"Transitions","soft":["After Effects","Premiere Pro"],"size":"","n":"Bryan Delimata","brand":"Bryan Delimata","shop":1,"img":"img/p111.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#1a1440","#7a5cff"],"link":""},{"id":123,"cat":"overlays","name":"Resource Boy - Dollar Textures","f":"Textures & PNG","soft":["Photoshop"],"size":"","n":"Resource Boy","brand":"Resource Boy","shop":1,"img":"img/p112.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#06362a","#12a37a"],"link":""},{"id":124,"cat":"luts","name":"Videohive - Cinematic Look Color LUTs","f":"Film emulation","soft":["Premiere Pro","After Effects"],"size":"","n":"Videohive","brand":"Videohive","shop":1,"img":"img/p113.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#300a20","#ff4fa0"],"link":""},{"id":125,"cat":"overlays","name":"Payhip - Lingo Pack V2","f":"Packs","soft":["After Effects"],"size":"","n":"Payhip","brand":"Payhip","shop":1,"img":"img/p114.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#1c1c1c","#9a9a9a"],"link":""},{"id":126,"cat":"overlays","name":"Beetlx Pack 2 After Effects","f":"Packs","soft":["After Effects"],"size":"","n":"Partner","brand":"Partner","shop":1,"img":null,"vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#2a0c10","#e3262f"],"link":""},{"id":127,"cat":"overlays","name":"Creative Market - Surreal Collage Art Creator","f":"Textures & PNG","soft":["Photoshop"],"size":"","n":"Creative Market","brand":"Creative Market","shop":1,"img":"img/p116.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#10203a","#2b7bff"],"link":""},{"id":128,"cat":"overlays","name":"Blindusk – Animated Sketchs","f":"Packs","soft":[],"size":"","n":"Blindusk","brand":"Blindusk","shop":1,"img":"img/p120.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#2a1a08","#e0a040"],"link":""},{"id":129,"cat":"overlays","name":"MotionVFX – Cyberpunk Model Pack","f":"VFX elements","soft":["Final Cut Pro"],"size":"","n":"MotionVFX","brand":"MotionVFX","shop":1,"img":null,"vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#1a1440","#7a5cff"],"link":""},{"id":130,"cat":"overlays","name":"The Creator FX Bundle 3","f":"VFX elements","soft":[],"size":"","n":"CreatorFX","brand":"CreatorFX","shop":1,"img":"img/p122.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#06362a","#12a37a"],"link":""},{"id":131,"cat":"overlays","name":"Payhip — Mista C Design Pack Vol. 1","f":"Textures & PNG","soft":["Photoshop"],"size":"","n":"Payhip","brand":"Payhip","shop":1,"img":"img/p123.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#300a20","#ff4fa0"],"link":""},{"id":132,"cat":"overlays","name":"Videohive - Paper Rip Transitions","f":"Transitions","soft":["After Effects"],"size":"","n":"Videohive","brand":"Videohive","shop":1,"img":"img/p124.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#1c1c1c","#9a9a9a"],"link":""},{"id":133,"cat":"overlays","name":"Blindusk - Transition Bundle","f":"Transitions","soft":["Premiere Pro","After Effects","Final Cut Pro"],"size":"","n":"Blindusk","brand":"Blindusk","shop":1,"img":"img/p125.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#2a0c10","#e3262f"],"link":""},{"id":134,"cat":"overlays","name":"AcidBite - Wipe & Light Transitions","f":"Transitions","soft":["Premiere Pro","After Effects"],"size":"","n":"AcidBite","brand":"AcidBite","shop":1,"img":null,"vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#10203a","#2b7bff"],"link":""},{"id":135,"cat":"overlays","name":"400+ Texture Pack","f":"Textures & PNG","soft":["Photoshop"],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p127.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#2a1a08","#e0a040"],"link":""},{"id":136,"cat":"overlays","name":"AcidBite - Film Titles (Full)","f":"Titles","soft":["After Effects","Premiere Pro","Final Cut Pro"],"size":"","n":"AcidBite","brand":"AcidBite","shop":1,"img":"img/p128.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#1a1440","#7a5cff"],"link":""},{"id":137,"cat":"overlays","name":"AcidBite - Film Leaks 4K (Full)","f":"Transitions","soft":["After Effects","Premiere Pro","DaVinci Resolve"],"size":"","n":"AcidBite","brand":"AcidBite","shop":1,"img":"img/p129.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#06362a","#12a37a"],"link":""},{"id":138,"cat":"overlays","name":"MoonBear - Archive Film 2","f":"Transitions","soft":["After Effects","Premiere Pro","DaVinci Resolve"],"size":"","n":"MoonBear","brand":"MoonBear","shop":1,"img":"img/p130.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#300a20","#ff4fa0"],"link":""},{"id":139,"cat":"overlays","name":"BigFilms - Environments Pack (Bundle - Vol. 1-2)","f":"Film & retro","soft":[],"size":"","n":"BigFilms","brand":"BigFilms","shop":1,"img":"img/p131.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#1c1c1c","#9a9a9a"],"link":""},{"id":140,"cat":"overlays","name":"Tropic Colour - La Film Stock Footage","f":"Film & retro","soft":[],"size":"","n":"Tropic Colour","brand":"Tropic Colour","shop":1,"img":null,"vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#2a0c10","#e3262f"],"link":""},{"id":141,"cat":"overlays","name":"AEjuice - Cyberpunk HUD","f":"VFX elements","soft":["After Effects","Premiere Pro"],"size":"","n":"AEJuice","brand":"AEJuice","shop":1,"img":"img/p133.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#10203a","#2b7bff"],"link":""},{"id":142,"cat":"luts","name":"Film Textures for LR by Serr","f":"Lightroom presets","soft":["Lightroom"],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p134.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#2a1a08","#e0a040"],"link":""},{"id":143,"cat":"luts","name":"Alexandru Don – Sony Slog 3 Luts – Skintone Edition","f":"Log to Rec.709","soft":[],"size":"","n":"Alexandru Don","brand":"Alexandru Don","shop":1,"img":"img/p135.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#1a1440","#7a5cff"],"link":""},{"id":144,"cat":"overlays","name":"AEjuice - Cyberpunk Glitch Texture Pack","f":"VFX elements","soft":["After Effects","Premiere Pro"],"size":"","n":"AEJuice","brand":"AEJuice","shop":1,"img":"img/p136.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#06362a","#12a37a"],"link":""},{"id":145,"cat":"overlays","name":"Chains pack","f":"Textures & PNG","soft":["Photoshop"],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p137.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#300a20","#ff4fa0"],"link":""},{"id":146,"cat":"overlays","name":"Metallic objects","f":"Textures & PNG","soft":["Photoshop"],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p141.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#1c1c1c","#9a9a9a"],"link":""},{"id":147,"cat":"overlays","name":"Music service icons","f":"Textures & PNG","soft":["Photoshop"],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p144.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#2a0c10","#e3262f"],"link":""},{"id":148,"cat":"overlays","name":"Vivid Backgrounds vol. 02","f":"Textures & PNG","soft":["Photoshop"],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p145.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#10203a","#2b7bff"],"link":""},{"id":149,"cat":"overlays","name":"Tiny Tapes - Fast Movement FX V3","f":"Film & retro","soft":[],"size":"","n":"Tiny Tapes","brand":"Tiny Tapes","shop":1,"img":"img/p146.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#2a1a08","#e0a040"],"link":""},{"id":150,"cat":"overlays","name":"Tiny Tapes - 3D Nature FX","f":"Film & retro","soft":[],"size":"","n":"Tiny Tapes","brand":"Tiny Tapes","shop":1,"img":"img/p149.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#1a1440","#7a5cff"],"link":""},{"id":151,"cat":"luts","name":"CinePacks - LUTS","f":"Film emulation","soft":[],"size":"","n":"CinePacks","brand":"CinePacks","shop":1,"img":"img/p150.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#06362a","#12a37a"],"link":""},{"id":152,"cat":"overlays","name":"CinePacks - VHS FX","f":"Film & retro","soft":[],"size":"","n":"CinePacks","brand":"CinePacks","shop":1,"img":"img/p151.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#300a20","#ff4fa0"],"link":""},{"id":153,"cat":"overlays","name":"Ripped Paper Lines & Circles Texture Pack","f":"Textures & PNG","soft":[],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p152.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#1c1c1c","#9a9a9a"],"link":""},{"id":154,"cat":"plugins","name":"Aescripts - Silence Remover v1.2","f":"Premiere Pro","soft":["Premiere Pro"],"size":"","n":"Aescripts","brand":"Aescripts","shop":1,"img":"img/p153.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#2a0c10","#e3262f"],"link":""},{"id":155,"cat":"plugins","name":"Shadow Studio 3","f":"After Effects","soft":["After Effects"],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p154.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#10203a","#2b7bff"],"link":""},{"id":156,"cat":"plugins","name":"Aescripts - BeatEdit AE v2.1.009","f":"After Effects","soft":["After Effects"],"size":"","n":"Aescripts","brand":"Aescripts","shop":1,"img":"img/p155.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#2a1a08","#e0a040"],"link":""},{"id":157,"cat":"overlays","name":"BLKMARKET - Trash Scans","f":"Film & retro","soft":["Photoshop"],"size":"","n":"BLKMARKET","brand":"BLKMARKET","shop":1,"img":"img/p156.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#1a1440","#7a5cff"],"link":""},{"id":158,"cat":"luts","name":"Paramount Motion – EXPLOSION™ Cinematic LUTs Collection 1&2","f":"Film emulation","soft":[],"size":"","n":"Paramount Motion","brand":"Paramount Motion","shop":1,"img":"img/p158.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#06362a","#12a37a"],"link":""},{"id":159,"cat":"overlays","name":"Tropic Colour – Magazine Cutouts","f":"Textures & PNG","soft":["Photoshop"],"size":"","n":"Tropic Colour","brand":"Tropic Colour","shop":1,"img":"img/p159.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#300a20","#ff4fa0"],"link":""},{"id":160,"cat":"overlays","name":"Alexandru Don - Organic Flares Pack","f":"VFX elements","soft":["After Effects","Premiere Pro","Final Cut Pro"],"size":"","n":"Alexandru Don","brand":"Alexandru Don","shop":1,"img":"img/p160.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#1c1c1c","#9a9a9a"],"link":""},{"id":161,"cat":"overlays","name":"Big Films - Cybercity Pack 01","f":"Film & retro","soft":[],"size":"","n":"BigFilms","brand":"BigFilms","shop":1,"img":"img/p161.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#2a0c10","#e3262f"],"link":""},{"id":162,"cat":"plugins","name":"Aescripts - AI Color Match V1.0","f":"After Effects","soft":[],"size":"","n":"Aescripts","brand":"Aescripts","shop":1,"img":"img/p162.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#10203a","#2b7bff"],"link":""},{"id":163,"cat":"overlays","name":"BigFilms - Blockbuster - Starter Pack","f":"Film & retro","soft":[],"size":"","n":"BigFilms","brand":"BigFilms","shop":1,"img":"img/p163.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#2a1a08","#e0a040"],"link":""},{"id":164,"cat":"overlays","name":"CinePacks Hole FX","f":"VFX elements","soft":[],"size":"","n":"CinePacks","brand":"CinePacks","shop":1,"img":"img/p164.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#1a1440","#7a5cff"],"link":""},{"id":165,"cat":"overlays","name":"Tape pack","f":"Film & retro","soft":["Photoshop"],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p165.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#06362a","#12a37a"],"link":""},{"id":166,"cat":"overlays","name":"Gradient pack","f":"Textures & PNG","soft":["Photoshop"],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p166.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#300a20","#ff4fa0"],"link":""},{"id":167,"cat":"overlays","name":"PNG illustration pack","f":"Textures & PNG","soft":["Photoshop"],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p169.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#1c1c1c","#9a9a9a"],"link":""},{"id":168,"cat":"overlays","name":"Fisheye template","f":"Textures & PNG","soft":["Photoshop"],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p170.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#2a0c10","#e3262f"],"link":""},{"id":169,"cat":"overlays","name":"Blindusk - FONTS BUNDLE","f":"Titles","soft":[],"size":"","n":"Blindusk","brand":"Blindusk","shop":1,"img":"img/p173.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#10203a","#2b7bff"],"link":""},{"id":170,"cat":"overlays","name":"Glass text template","f":"Textures & PNG","soft":["Photoshop"],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p174.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#2a1a08","#e0a040"],"link":""},{"id":171,"cat":"overlays","name":"FLYERWRK - Master Bundle Vol. 2","f":"Textures & PNG","soft":["Photoshop"],"size":"","n":"FLYERWRK","brand":"FLYERWRK","shop":1,"img":"img/p177.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#1a1440","#7a5cff"],"link":""},{"id":172,"cat":"overlays","name":"BusyBoxx - Rain Fall (Vol 1)","f":"VFX elements","soft":[],"size":"","n":"BusyBoxx","brand":"BusyBoxx","shop":1,"img":"img/p180.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#06362a","#12a37a"],"link":""},{"id":173,"cat":"overlays","name":"Tropic Colour - Editing Essentials","f":"Packs","soft":[],"size":"","n":"Tropic Colour","brand":"Tropic Colour","shop":1,"img":"img/p181.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#300a20","#ff4fa0"],"link":""},{"id":174,"cat":"overlays","name":"AKV Studios - Ultimate Camera Shake FX","f":"VFX elements","soft":[],"size":"","n":"AKV Studios","brand":"AKV Studios","shop":1,"img":"img/p182.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#1c1c1c","#9a9a9a"],"link":""},{"id":175,"cat":"overlays","name":"Andras Ra - Seamless Transition Pack","f":"Transitions","soft":[],"size":"","n":"Andras Ra","brand":"Andras Ra","shop":1,"img":"img/p183.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#2a0c10","#e3262f"],"link":""},{"id":176,"cat":"overlays","name":"Tropic Colour - Money FX","f":"VFX elements","soft":[],"size":"","n":"Tropic Colour","brand":"Tropic Colour","shop":1,"img":"img/p184.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#10203a","#2b7bff"],"link":""},{"id":177,"cat":"overlays","name":"BLKMARKET - Materials Collection #1","f":"Packs","soft":[],"size":"","n":"BLKMARKET","brand":"BLKMARKET","shop":1,"img":"img/p185.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#2a1a08","#e0a040"],"link":""},{"id":178,"cat":"overlays","name":"CinePacks - Hole FX (Full Version)","f":"VFX elements","soft":[],"size":"","n":"CinePacks","brand":"CinePacks","shop":1,"img":"img/p187.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#1a1440","#7a5cff"],"link":""},{"id":179,"cat":"luts","name":"Lumino Presets Bladerunner Batch 1","f":"Lightroom presets","soft":["Lightroom"],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p188.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#06362a","#12a37a"],"link":""},{"id":180,"cat":"overlays","name":"Videohive - VFX Effects Pack","f":"VFX elements","soft":["After Effects"],"size":"","n":"Videohive","brand":"Videohive","shop":1,"img":null,"vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#300a20","#ff4fa0"],"link":""},{"id":181,"cat":"sfx","name":"REELBURN - SFX Collection","f":"Sound packs","soft":[],"size":"","n":"REELBURN","brand":"REELBURN","shop":1,"img":"img/p190.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#1c1c1c","#9a9a9a"],"link":""},{"id":182,"cat":"overlays","name":"6Beanerish – 6ISH PACK 1","f":"Packs","soft":["After Effects"],"size":"","n":"6Beanerish","brand":"6Beanerish","shop":1,"img":"img/p191.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#2a0c10","#e3262f"],"link":""},{"id":183,"cat":"overlays","name":"REELBURN - Old Computer Visuals","f":"Film & retro","soft":[],"size":"","n":"REELBURN","brand":"REELBURN","shop":1,"img":"img/p192.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#10203a","#2b7bff"],"link":""},{"id":184,"cat":"overlays","name":"Videohive - Collage Pack V3.2","f":"Textures & PNG","soft":[],"size":"","n":"Videohive","brand":"Videohive","shop":1,"img":"img/p193.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#2a1a08","#e0a040"],"link":""},{"id":185,"cat":"overlays","name":"AEJuice AE & PP Pack","f":"Packs","soft":[],"size":"","n":"AEJuice","brand":"AEJuice","shop":1,"img":"img/p194.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#1a1440","#7a5cff"],"link":""},{"id":186,"cat":"overlays","name":"Cinepacks - Gun FX","f":"VFX elements","soft":[],"size":"","n":"CinePacks","brand":"CinePacks","shop":1,"img":"img/p198.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#06362a","#12a37a"],"link":""},{"id":187,"cat":"overlays","name":"Retro UI Elements - 4K","f":"Film & retro","soft":[],"size":"","n":"Retro UI Elements","brand":"Retro UI Elements","shop":1,"img":"img/p199.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#300a20","#ff4fa0"],"link":""},{"id":188,"cat":"overlays","name":"Viboh's Edit Pack 2","f":"Packs","soft":["After Effects"],"size":"","n":"Partner","brand":"Partner","shop":1,"img":null,"vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#1c1c1c","#9a9a9a"],"link":""},{"id":189,"cat":"overlays","name":"Creative Market - Vintage Distressed Film Overlays","f":"Film & retro","soft":[],"size":"","n":"Creative Market","brand":"Creative Market","shop":1,"img":"img/p201.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#2a0c10","#e3262f"],"link":""},{"id":190,"cat":"overlays","name":"Trapstar Project 2.0","f":"Textures & PNG","soft":["Photoshop"],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p204.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#10203a","#2b7bff"],"link":""},{"id":191,"cat":"luts","name":"Joel Famularo - Sony A7s3 & FX6 - Updated 09.2023","f":"Log to Rec.709","soft":[],"size":"","n":"Joel Famularo","brand":"Joel Famularo","shop":1,"img":"img/p206.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#2a1a08","#e0a040"],"link":""},{"id":192,"cat":"overlays","name":"Production Crate – Flying Debris","f":"VFX elements","soft":[],"size":"","n":"ProductionCrate","brand":"ProductionCrate","shop":1,"img":"img/p208.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#1a1440","#7a5cff"],"link":""},{"id":193,"cat":"overlays","name":"Blindusk - Chrome Titles (Full Pack)","f":"Titles","soft":[],"size":"","n":"Blindusk","brand":"Blindusk","shop":1,"img":"img/p209.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#06362a","#12a37a"],"link":""},{"id":194,"cat":"overlays","name":"MotionVFX - mTransition Film Roll","f":"Transitions","soft":["Final Cut Pro"],"size":"","n":"MotionVFX","brand":"MotionVFX","shop":1,"img":"img/p210.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#300a20","#ff4fa0"],"link":""},{"id":195,"cat":"overlays","name":"REELBURN - Polaroid FX","f":"Film & retro","soft":[],"size":"","n":"REELBURN","brand":"REELBURN","shop":1,"img":"img/p211.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#1c1c1c","#9a9a9a"],"link":""},{"id":196,"cat":"overlays","name":"Inslay Editing Pack","f":"Packs","soft":["After Effects"],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p212.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#2a0c10","#e3262f"],"link":""},{"id":197,"cat":"overlays","name":"35mm Film Borders & Frames","f":"Film & retro","soft":["Photoshop"],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p213.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#10203a","#2b7bff"],"link":""},{"id":198,"cat":"luts","name":"Cinegrams - Cine Essentials V2","f":"Lightroom presets","soft":["Lightroom"],"size":"","n":"Cinegrams","brand":"Cinegrams","shop":1,"img":"img/p214.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#2a1a08","#e0a040"],"link":""},{"id":199,"cat":"overlays","name":"AKV Studios – Freeze Frame & Rotoscope Presets","f":"Packs","soft":["Premiere Pro"],"size":"","n":"AKV Studios","brand":"AKV Studios","shop":1,"img":"img/p215.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#1a1440","#7a5cff"],"link":""},{"id":200,"cat":"luts","name":"Cinegrams - Movie Looks V1","f":"Film emulation","soft":[],"size":"","n":"Cinegrams","brand":"Cinegrams","shop":1,"img":"img/p216.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#06362a","#12a37a"],"link":""},{"id":201,"cat":"luts","name":"Cinegrams - Movie Looks V2","f":"Film emulation","soft":[],"size":"","n":"Cinegrams","brand":"Cinegrams","shop":1,"img":"img/p217.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#300a20","#ff4fa0"],"link":""},{"id":202,"cat":"overlays","name":"AKV Studios - Intensity FX Presets Pack","f":"VFX elements","soft":["Premiere Pro"],"size":"","n":"AKV Studios","brand":"AKV Studios","shop":1,"img":"img/p218.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#1c1c1c","#9a9a9a"],"link":""},{"id":203,"cat":"overlays","name":"Creative Market - Torn Paper Edge Textures","f":"Textures & PNG","soft":[],"size":"","n":"Creative Market","brand":"Creative Market","shop":1,"img":"img/p219.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#2a0c10","#e3262f"],"link":""},{"id":204,"cat":"luts","name":"Blindusk - Downtown Luts","f":"Film emulation","soft":[],"size":"","n":"Blindusk","brand":"Blindusk","shop":1,"img":"img/p220.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#10203a","#2b7bff"],"link":""},{"id":205,"cat":"plugins","name":"Aescripts - Lockdown 3.0.0 Win","f":"After Effects","soft":[],"size":"","n":"Aescripts","brand":"Aescripts","shop":1,"img":"img/p222.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#2a1a08","#e0a040"],"link":""},{"id":206,"cat":"overlays","name":"BLKMARKET - Dust & Scratches","f":"Film & retro","soft":[],"size":"","n":"BLKMARKET","brand":"BLKMARKET","shop":1,"img":"img/p223.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#1a1440","#7a5cff"],"link":""},{"id":207,"cat":"overlays","name":"Blindusk – Dream Haze Effect","f":"Packs","soft":[],"size":"","n":"Blindusk","brand":"Blindusk","shop":1,"img":"img/p224.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#06362a","#12a37a"],"link":""},{"id":208,"cat":"overlays","name":"Payhip - BAT PACK 3","f":"Packs","soft":["After Effects"],"size":"","n":"Payhip","brand":"Payhip","shop":1,"img":"img/p225.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#300a20","#ff4fa0"],"link":""},{"id":209,"cat":"overlays","name":"Flyer Bundle Pro - Super Texture Pack","f":"Textures & PNG","soft":["Photoshop"],"size":"","n":"Flyer Bundle Pro","brand":"Flyer Bundle Pro","shop":1,"img":"img/p226.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#1c1c1c","#9a9a9a"],"link":""},{"id":210,"cat":"overlays","name":"Triune Digital - Infinity VFX Dust","f":"Film & retro","soft":[],"size":"","n":"Triune Digital","brand":"Triune Digital","shop":1,"img":"img/p227.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#2a0c10","#e3262f"],"link":""},{"id":211,"cat":"overlays","name":"Triune Digital - Infinity VFX Smoke","f":"VFX elements","soft":[],"size":"","n":"Triune Digital","brand":"Triune Digital","shop":1,"img":"img/p228.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#10203a","#2b7bff"],"link":""},{"id":212,"cat":"overlays","name":"SUPERHEROES Pack","f":"VFX elements","soft":[],"size":"","n":"Partner","brand":"Partner","shop":1,"img":"img/p273.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#2a1a08","#e0a040"],"link":""},{"id":213,"cat":"overlays","name":"AcidBite - Super Mixed Media Pack","f":"Transitions","soft":["After Effects","Premiere Pro"],"size":"","n":"AcidBite","brand":"AcidBite","shop":1,"img":"img/p280.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-20","g":["#1a1440","#7a5cff"],"link":""},{"id":214,"cat":"overlays","name":"AtomX 555+ Essential Titles and Lower Thirds","f":"Titles","soft":[],"size":"","n":"AtomX","brand":"AtomX","shop":1,"img":"img/p281.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#06362a","#12a37a"],"link":""},{"id":215,"cat":"plugins","name":"ProductionCrate - LaForge Suite v1.3.7 (Win)","f":"After Effects","soft":["After Effects","Premiere Pro"],"size":"","n":"ProductionCrate","brand":"ProductionCrate","shop":1,"img":"img/p282.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-20","g":["#300a20","#ff4fa0"],"link":""},{"id":216,"cat":"overlays","name":"Tropic Colour - Film Titles Vol 3","f":"Titles","soft":[],"size":"","n":"Tropic Colour","brand":"Tropic Colour","shop":1,"img":"img/p285.jpg","vid":true,"tier":0,"val":0,"date":"2025-05-26","g":["#1c1c1c","#9a9a9a"],"link":""},{"id":217,"cat":"overlays","name":"REELBURN - Wipe And Bright Transitions","f":"Transitions","soft":[],"size":"","n":"REELBURN","brand":"REELBURN","shop":1,"img":"img/p286.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-26","g":["#2a0c10","#e3262f"],"link":""},{"id":218,"cat":"overlays","name":"Bryan Delimata - Ultimate Texture Bundle v2","f":"Textures & PNG","soft":[],"size":"","n":"Bryan Delimata","brand":"Bryan Delimata","shop":1,"img":"img/p287.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-26","g":["#10203a","#2b7bff"],"link":""},{"id":219,"cat":"overlays","name":"Bryan Delimata - Opium Sapphire & Universe Preset Bank","f":"Packs","soft":[],"size":"","n":"Bryan Delimata","brand":"Bryan Delimata","shop":1,"img":"img/p289.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-26","g":["#2a1a08","#e0a040"],"link":""},{"id":220,"cat":"overlays","name":"Bryan Delimata - Film Frame Transitions","f":"Transitions","soft":[],"size":"","n":"Bryan Delimata","brand":"Bryan Delimata","shop":1,"img":"img/p290.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-26","g":["#1a1440","#7a5cff"],"link":""},{"id":221,"cat":"overlays","name":"Tiny Tapes - Scan Overlays 4K","f":"Film & retro","soft":[],"size":"","n":"Tiny Tapes","brand":"Tiny Tapes","shop":1,"img":"img/p291.jpg","vid":false,"tier":0,"val":0,"date":"2025-05-26","g":["#06362a","#12a37a"],"link":""}]);
+const LESSONS=[
+  {t:"How to read a music video like a director",d:"9 min",free:true},
+  {t:"Hard light and the single-source look",d:"14 min",free:true},
+  {t:"Speed ramps that hit the beat",d:"12 min"},
+  {t:"Grading from Log: palette first, LUT second",d:"18 min"},
+  {t:"Chroma key sets on a small budget",d:"16 min"},
+  {t:"In-camera transitions",d:"11 min"},
+  {t:"AI shots that cut with real footage",d:"20 min"},
+  {t:"Building your own LUT pack",d:"15 min"}
+];
+const RANKS=[{k:0,name:"Viewer"},{k:1,name:"Insider"},{k:3,name:"Crew"},{k:5,name:"Director"}];
+
+const DEF={plan:"free",inv:0,tab:"latest",filter:null,q:"",got:[],phone:"",email:"",skin:"auto",role:"admin",seenPromo:false,disc:false,payPending:null,edits:{},adm:"overview",until:new Date(Date.now()+30*864e5).toISOString().slice(0,10)};
+let S=load();
+function load(){try{const s=JSON.parse(localStorage.getItem("dtvault")||"null");if(s)return Object.assign({},DEF,s,{filter:null,q:""});}catch(e){}return {...DEF};}
+function save(){try{localStorage.setItem("dtvault",JSON.stringify({plan:S.plan,inv:S.inv,tab:S.tab,got:S.got,phone:S.phone,email:S.email,until:S.until,skin:S.skin,role:S.role,seenPromo:S.seenPromo,disc:S.disc,payPending:S.payPending,edits:S.edits,adm:S.adm}));}catch(e){}}
+
+const $=id=>document.getElementById(id);
+const rank=()=>S.plan==="pro"?"Pro":RANKS.filter(r=>S.inv>=r.k).pop().name;
+const isOpen=it=>S.plan==="pro"||it.tier===0||(it.tier<9&&S.inv>=it.tier);
+const lockText=it=>it.tier===9?"Pro only":`Invite ${it.tier-S.inv} more`;
+
+function renderAccount(){
+  const pro=S.plan==="pro";
+  const pill=$("statusPill");pill.textContent=rank();pill.classList.toggle("pro",pro);
+  const own=ITEMS.filter(i=>!i.shop),unlocked=own.filter(isOpen);
+  $("stUnlocked").textContent=`${unlocked.length}/${own.length}`;
+  $("stGot").textContent=S.got.length;
+  $("stValue").textContent="$"+ITEMS.filter(i=>S.got.includes(i.id)).reduce((a,i)=>a+i.val,0);
+  $("refCount").textContent=pro?"Pro: all unlocked":`${S.inv} / 5`;
+  $("refTitle").textContent=pro?"Your Pro plan is active":S.inv>=5?"Director pack unlocked":"Invite friends, unlock packs";
+  [...$("ladder").children].forEach((el,i)=>el.classList.toggle("on",pro||i<S.inv));
+  document.querySelectorAll(".ref-steps span").forEach(el=>el.classList.toggle("on",pro||S.inv>=+el.dataset.k));
+  $("refShort").textContent=pro?"Pro":`${S.inv} / 5 · ${rank()}`;
+  $("accSub").textContent=pro?`@${MEH} · Pro until ${fmt(S.until)}`:`@${MEH} · Free plan`;
+  renderProfile();
+}
+
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fmt=iso=>{const [y,m,d]=iso.split("-");return `${+d} ${MONTHS.at(+m-1)} ${y}`;};
+const todayISO=()=>new Date().toISOString().slice(0,10);
+const plusDays=n=>new Date(Date.now()+n*864e5).toISOString().slice(0,10);
+const daysLeft=iso=>Math.ceil((Date.parse(iso)-Date.parse(todayISO()))/864e5);
+
+function renderProfile(){
+  const pro=S.plan==="pro",card=$("planCard");
+  card.classList.toggle("pro",pro);
+  if(pro){
+    const left=daysLeft(S.until),expired=left<0;
+    card.innerHTML=`<div class="plan-top"><span class="plan-name">Pro</span><span class="plan-until">${expired?"expired":left+" days left"}</span></div>
+      <div class="plan-bar"><i style="width:${Math.max(0,Math.min(100,left/30*100))}%"></i></div>
+      <div class="hint" style="margin:0">${expired?"Expired on":"Active until"} <b style="color:var(--fg)">${fmt(S.until)}</b>. All packs and every course lesson are open.</div>
+      <button class="btn gold" data-pay>${expired?"Renew Pro":"Extend for 30 days"}</button>`;
+  }else{
+    card.innerHTML=`<div class="plan-top"><span class="plan-name">Free</span><span class="plan-until">no end date</span></div>
+      <div class="hint" style="margin:0">Status <b style="color:var(--fg)">${rank()}</b> · ${ITEMS.filter(i=>!i.shop&&isOpen(i)).length} of ${ITEMS.filter(i=>!i.shop).length} packs open. Pro opens everything, including the full course.</div>
+      ${S.payPending?`<div class="pill pend" style="justify-self:start">Payment #${S.payPending} under review</div>`:""}<button class="btn gold" data-pay>${S.disc?"Get Pro · −15%":"Get Pro"}</button>`;
+  }
+  const ph=$("phoneVal");ph.textContent=S.phone?S.phone.replace(/\d(?=\d{4})/g,"•"):"Not connected";ph.classList.toggle("ok",!!S.phone);
+  $("phoneRemove").hidden=!S.phone;
+  const em=$("emailVal");em.textContent=S.email||"Not connected";em.classList.toggle("ok",!!S.email);
+  $("emailRemove").hidden=!S.email;
+  $("untilIn").value=S.until;$("untilRow").hidden=!pro;
+}
+
+function renderTabs(){
+  $("tabs").innerHTML=TABS.concat(S.role==="admin"?[{id:"admin",label:"Admin"}]:[]).map(t=>`<button class="tab" role="tab" aria-selected="${t.id===S.tab}" data-tab="${t.id}">${t.label}</button>`).join("");
+}
+
+function itemRow(it){
+  const open=isOpen(it),got=S.got.includes(it.id);
+  const fresh=it.date>="2026-10-19";
+  const btn=it.shop?`<button class="btn get shop" data-shop="${it.id}">Shop ↗</button>`:!open?`<button class="btn get locked" data-lock="${it.id}">${lockText(it)}</button>`
+    :got?`<button class="btn get done" data-get="${it.id}">Sent ✓</button>`
+    :`<button class="btn get" data-get="${it.id}">Get</button>`;
+  return `<div class="item${it.hidden?" hidden-item":""}">${S.role==="admin"?`<button class="edit-btn" data-edit="${it.id}" aria-label="Edit ${it.name}">✎</button>`:""}
+    <button class="thumb${fresh?" new":""}" data-view="${it.id}" aria-label="Preview ${it.name}" style="background:${it.img?`center/cover url('${it.img}')`:`linear-gradient(135deg,${it.g[0]},${it.g[1]})`}">${it.img?"":it.cat}<span class="play">${it.cat==="sfx"?"♪":it.cat==="luts"||it.f==="Photoshop"?"⤢":"▶"}</span></button>
+    <div class="item-main"><div class="item-name">${it.name}</div>
+      <div class="item-meta">${it.shop?`<span class="tag partner">Partner</span>${it.brand!=="Partner"?`<span>${esc(it.brand)}</span>`:""}`:`<span>${it.n}</span><span>${it.size}</span>`}${it.soft.map(s=>`<span class="tag">${s}</span>`).join("")}</div></div>
+    ${btn}</div>`;
+}
+
+function renderPanel(){
+  if(S.tab==="admin"){if(S.role==="admin"){renderAdmin();return;}S.tab="latest";}
+  const tab=TABS.find(t=>t.id===S.tab);
+  if(tab.id==="course"){renderCourse();return;}
+  let list=(S.role==="admin"?ITEMS:ITEMS.filter(i=>!i.hidden));list=tab.id==="latest"?[...list].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10):list.filter(i=>i.cat===tab.id);
+  if(S.filter)list=list.filter(i=>i.f===S.filter);
+  if(S.q){const q=S.q.toLowerCase();list=list.filter(i=>(i.name+" "+i.f+" "+i.soft.join(" ")).toLowerCase().includes(q));}
+  const chips=tab.filters?`<div class="chips">${tab.filters.map(f=>`<button class="chip" aria-pressed="${S.filter===f}" data-filter="${f}">${f}</button>`).join("")}</div>`:"";
+  $("panel").innerHTML=`<input class="search" id="q" type="search" placeholder="Search ${tab.label.toLowerCase()}…" value="${S.q}" aria-label="Search">
+    ${chips}
+    <div class="section-label"><span>${tab.id==="latest"?"Latest releases":tab.pub?tab.label+" · free for everyone":tab.label}${S.filter?" · "+S.filter:""}</span><span>${list.length} item${list.length===1?"":"s"}</span></div>
+    <div class="list">${list.length?list.map(itemRow).join(""):`<div class="empty">Nothing here yet. Try another filter.</div>`}</div>`;
+  const q=$("q");q.addEventListener("input",e=>{S.q=e.target.value;const pos=e.target.selectionStart;renderPanel();const n=$("q");n.focus();n.setSelectionRange(pos,pos);});
+}
+
+function renderCourse(){
+  const pro=S.plan==="pro";
+  const open=LESSONS.filter(l=>pro||l.free).length;
+  $("panel").innerHTML=`<div class="section-label"><span>Course</span><span>${LESSONS.length} lessons</span></div>
+    <div class="course-hero"><h2>Watch. Steal. Direct.</h2>
+      <p>The tricks from our breakdowns, step by step: light, camera, grade, edit and AI shots.</p>
+      <div class="progress"><i style="width:${open/LESSONS.length*100}%"></i></div>
+      <div class="item-meta" style="margin-top:6px"><span>${open} of ${LESSONS.length} lessons open</span></div>
+      ${pro?"":`<button class="btn gold" id="goPro" style="margin-top:12px;width:100%">Unlock all lessons with Pro</button>`}
+    </div>
+    <div>${LESSONS.map((l,i)=>`<div class="lesson"><div class="num">${String(i+1).padStart(2,"0")}</div>
+      <div><div class="lname">${l.t}</div><div class="ldur">${l.d}${l.free?" · free":""}</div></div>
+      <div class="lock${pro||l.free?" open":""}">${pro||l.free?"Watch":"Pro"}</div></div>`).join("")}</div>`;
+  const g=$("goPro");if(g)g.onclick=()=>openPay();
+}
+
+function renderMatrix(){
+  const rows=[["Free items",ITEMS.filter(i=>i.tier===0).length],["Unlocked at 1 friend",ITEMS.filter(i=>i.tier===1).length],
+    ["Unlocked at 3 friends",ITEMS.filter(i=>i.tier===3).length],["Unlocked at 5 friends",ITEMS.filter(i=>i.tier===5).length],
+    ["Pro only",ITEMS.filter(i=>i.tier===9).length],["This user sees open",ITEMS.filter(i=>!i.shop&&isOpen(i)).length]];
+  $("matrix").innerHTML=rows.map(r=>`<div><span>${r[0]}</span><span>${r[1]}</span></div>`).join("");
+  document.querySelectorAll("#planSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.plan===S.plan));
+  $("inv").value=S.inv;$("invOut").textContent=S.inv;
+}
+
+function applySkin(){
+  document.documentElement.dataset.skin=S.skin;
+  const dark=S.skin==="dark"||(S.skin==="auto"&&matchMedia("(prefers-color-scheme: dark)").matches);
+  $("skinBtn").textContent=dark?"☀":"☾";
+  document.querySelectorAll("#skinSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.skin===S.skin));
+  $("adminOpen").hidden=S.role!=="admin";$("demoBar").hidden=S.role==="admin"||(window.TGA&&!S.tgAdmin);
+}
+function render(){applySkin();renderAccount();renderTabs();renderPanel();renderMatrix();save();}
+
+let tt;function toast(m){const t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("show"),2200);}
+
+document.addEventListener("click",e=>{
+  const t=e.target.closest("[data-tab]");if(t){S.tab=t.dataset.tab;if(t.dataset.tab!=="admin")logMe("tab "+t.textContent);S.filter=null;S.q="";render();return;}
+  const f=e.target.closest("[data-filter]");if(f){S.filter=S.filter===f.dataset.filter?null:f.dataset.filter;renderPanel();return;}
+  const vw=e.target.closest("[data-view]");if(vw){openViewer(+vw.dataset.view);logMe("preview "+ITEMS.find(i=>i.id===+vw.dataset.view).name);return;}
+  const sh=e.target.closest("[data-shop]");if(sh){const it=ITEMS.find(i=>i.id===+sh.dataset.shop);logMe("shop "+it.name);
+    if(it.link){window.Telegram?.WebApp?.openLink?Telegram.WebApp.openLink(it.link):window.open(it.link,"_blank","noopener");}
+    else if(S.role==="admin"){openEdit(it.id);toast("Add the affiliate link for this pack");}else toast("Store link coming soon");return;}
+  const g=e.target.closest("[data-get]");if(g){logMe("get "+ITEMS.find(i=>i.id===+g.dataset.get).name);if(!$("viewer").hidden){const id=+g.dataset.get;if(!S.got.includes(id))S.got.push(id);render();openViewer(id);toast("Sent to your Telegram chat");return;}const id=+g.dataset.get;if(!S.got.includes(id))S.got.push(id);render();toast("Sent to your Telegram chat");return;}
+  const l=e.target.closest("[data-lock]");if(l){const it=ITEMS.find(i=>i.id===+l.dataset.lock);logMe(`locked: ${it.name} (${tierName(it.tier)})`);toast(it.tier===9?"Available with Pro":`Invite ${it.tier-S.inv} more friend${it.tier-S.inv>1?"s":""} to unlock`);return;}
+  const p=e.target.closest("[data-plan]");if(p){const v=p.dataset.plan;if(v==="reset"){S={...DEF};}else{if(v==="pro"&&S.plan!=="pro"&&daysLeft(S.until)<1)S.until=plusDays(30);S.plan=v;}render();return;}
+  const tb=e.target.closest("[data-toast]");if(tb){toast(tb.dataset.toast);return;}
+});
+$("copyBtn").onclick=()=>{const txt=$("refLink").textContent;
+  (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast("Invite link copied"),()=>{const r=document.createRange();r.selectNodeContents($("refLink"));const s=getSelection();s.removeAllRanges();s.addRange(r);toast("Link selected, copy it");});};
+$("inv").oninput=e=>{S.inv=+e.target.value;render();};
+// Sample scene standing in for the real preview photo/video each pack will carry.
+const scene=(id)=>`<svg viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="sky${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2d3a5c"/><stop offset=".6" stop-color="#c46a4a"/><stop offset="1" stop-color="#f1b26b"/></linearGradient></defs><rect width="160" height="90" fill="url(#sky${id})"/><circle cx="112" cy="58" r="12" fill="#ffd9a0"/><path d="M0 70 L30 52 L52 64 L80 44 L108 66 L130 56 L160 68 V90 H0Z" fill="#2a1a22"/><rect x="62" y="52" width="6" height="22" fill="#140b10"/><circle cx="65" cy="49" r="4" fill="#140b10"/><rect x="0" y="78" width="160" height="12" fill="#120a0d"/></svg>`;
+const LUTFX={"Music video":"saturate(1.5) hue-rotate(-25deg) contrast(1.15)","Film emulation":"sepia(.35) contrast(1.1) saturate(.9)","Teal & orange":"hue-rotate(-12deg) saturate(1.4) contrast(1.2)","Black & white":"grayscale(1) contrast(1.3)","Log to Rec.709":"contrast(1.35) saturate(1.3)"};
+let audioCtx;
+function whoosh(){try{audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();const c=audioCtx,len=c.sampleRate*1.2,buf=c.createBuffer(1,len,c.sampleRate),d=buf.getChannelData(0);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.sin(Math.PI*i/len);const src=c.createBufferSource(),f=c.createBiquadFilter();f.type="bandpass";f.frequency.setValueAtTime(300,c.currentTime);f.frequency.exponentialRampToValueAtTime(4000,c.currentTime+1.1);src.buffer=buf;src.connect(f).connect(c.destination);src.start();}catch(e){toast("Sound preview is not available here");}}
+function openViewer(id){
+  const it=ITEMS.find(i=>i.id===id),fr=$("vFrame");
+  $("vTitle").textContent=it.name;$("vMeta").innerHTML=`<b>${it.shop?esc(it.brand):it.n+" · "+it.size}</b>${it.soft.join(" · ")}`;
+  let kind="Video preview",hint="";
+  if(it.shop){kind=it.vid?"Promo video cover":"Promo image";hint=`Official ${it.brand} preview. Buy on the brand's store`;
+    fr.innerHTML=it.img?`<img src="${it.img}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000">`:scene("a");fr.onpointerdown=null;
+  }else if(it.cat==="luts"){kind="Before / after";hint="Drag across the frame to compare";
+    fr.innerHTML=`${scene("a")}<div class="after" id="vAfter" style="filter:${LUTFX[it.f]||"contrast(1.2)"}">${scene("b")}</div><div class="handle" id="vHandle"></div><span class="badge" style="left:10px">BEFORE</span><span class="badge" style="right:10px">AFTER</span>`;
+    const move=x=>{const r=fr.getBoundingClientRect(),p=Math.max(0,Math.min(100,(x-r.left)/r.width*100));$("vAfter").style.clipPath=`inset(0 0 0 ${p}%)`;$("vHandle").style.left=p+"%";};
+    let drag=false;fr.onpointerdown=e=>{drag=true;fr.setPointerCapture(e.pointerId);move(e.clientX);};fr.onpointermove=e=>{if(drag)move(e.clientX);};fr.onpointerup=()=>drag=false;
+  }else if(it.cat==="sfx"){kind="Audio preview";hint="Tap the waveform to listen";
+    fr.innerHTML=`<div class="wave" id="vWave">${Array.from({length:48},(_,i)=>`<i style="height:${18+Math.abs(Math.sin(i*.7+it.id))*80}%"></i>`).join("")}</div>`;
+    fr.onpointerdown=()=>{whoosh();const w=$("vWave");w.classList.add("on");setTimeout(()=>w.classList.remove("on"),1200);};
+  }else if(it.cat==="overlays"){hint="Looping preview over sample footage";
+    fr.innerHTML=`${scene("a")}${it.f==="Film grain"||it.f==="Dust & scratches"?`<svg class="grain" viewBox="0 0 100 100" preserveAspectRatio="none"><filter id="n"><feTurbulence baseFrequency=".9" numOctaves="2"/></filter><rect width="100" height="100" filter="url(#n)"/></svg>`:`<div class="leak" style="background:radial-gradient(40% 60% at 50% 50%,${it.g[1]},transparent 70%)"></div>`}`;
+    fr.onpointerdown=null;
+  }else{kind=it.f==="Photoshop"?"Photo preview":"Video preview";hint=it.f==="Photoshop"?"Result of the action on a sample photo":"Looping preview of the preset";
+    fr.innerHTML=`<div style="position:absolute;inset:0" class="${it.f==="Photoshop"?"":"shake"}">${scene("a")}</div>`;fr.onpointerdown=null;}
+  $("vKind").textContent=kind;$("vHint").textContent=hint;
+  const open=isOpen(it),got=S.got.includes(it.id);
+  $("vAction").innerHTML=it.shop?`<button class="btn get shop" data-shop="${it.id}">Shop at ${esc(it.brand)} ↗</button>`:!open?`<button class="btn get locked" data-lock="${it.id}">${lockText(it)}</button>`:`<button class="btn get${got?" done":""}" data-get="${it.id}">${got?"Sent ✓":"Get"}</button>`;
+  $("viewer").hidden=false;
+}
+$("vClose").onclick=()=>{$("viewer").hidden=true;$("vFrame").innerHTML="";};
+let openId=null;
+const openSheet=id=>{if(openId)$(openId).hidden=true;openId=id;if(id)$(id).hidden=false;$("sheetBg").hidden=!id;};
+$("skinBtn").onclick=()=>{const dark=document.documentElement.dataset.skin==="dark"||(S.skin==="auto"&&matchMedia("(prefers-color-scheme: dark)").matches);S.skin=dark?"light":"dark";render();};
+document.addEventListener("click",e=>{const b=e.target.closest("[data-skin]");if(b&&b.tagName==="BUTTON"){S.skin=b.dataset.skin;render();}});
+try{matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{if(S.skin==="auto")applySkin();});}catch(e){}
+$("asSub").onclick=()=>{S.role="subscriber";if(S.tab==="admin")S.tab="latest";openSheet(null);render();};
+$("promoAgain").onclick=()=>{S.seenPromo=false;S.disc=false;openSheet("promoSheet");};
+$("demoExit").onclick=()=>{S.role="admin";render();};
+$("adminOpen").onclick=()=>openSheet("sheet");$("sheetClose").onclick=()=>openSheet(null);$("sheetBg").onclick=()=>openSheet(null);
+$("profileOpen").onclick=()=>openSheet("profileSheet");$("profileClose").onclick=()=>openSheet(null);
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(!$("viewer").hidden)$("vClose").click();else openSheet(null);}});
+$("untilIn").onchange=e=>{if(e.target.value){S.until=e.target.value;render();}};
+const savePhone=v=>{const d=v.replace(/[^\d+]/g,"");if(d.replace(/\D/g,"").length<7){toast("Enter a full phone number with country code");return;}S.phone=d;$("phoneIn").value="";render();toast("Phone connected");};
+$("phoneShare").onclick=()=>savePhone("+14155550142");
+$("phoneSave").onclick=()=>savePhone($("phoneIn").value);
+$("phoneRemove").onclick=()=>{S.phone="";render();toast("Phone disconnected");};
+$("emailSave").onclick=()=>{const v=$("emailIn").value.trim();const ok=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);$("emailErr").hidden=ok;if(!ok)return;S.email=v;$("emailIn").value="";render();toast("Email connected");};
+$("emailRemove").onclick=()=>{S.email="";render();toast("Email disconnected");};
+// ---------- Admin, payments, schedule, broadcast (sample data; the real bot reads all of this from the server) ----------
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const hhmm=()=>new Date().toTimeString().slice(0,5);
+const CATC={luts:"#7a3cff",plugins:"#e3262f",overlays:"#ff8a00",sfx:"#2b7bff",ai:"#12a37a",production:"#8a6a3c"};
+const TIERS=[[0,"Free"],[1,"1 friend"],[3,"3 friends"],[5,"5 friends"],[9,"Pro only"]];
+const tierName=t=>TIERS.find(x=>x[0]===+t)[1];
+
+const PRICES={m:{label:"Pro · 1 month",note:"Cancel anytime",usd:12,stars:600,days:30},y:{label:"Pro · 12 months",note:"Two months free",usd:99,stars:5000,days:365}};
+const METHODS=[
+  {id:"stars",name:"Telegram Stars",note:"Pay inside Telegram. Confirmed instantly.",auto:true},
+  {id:"gumroad",name:"Card or PayPal",note:"Checkout on Gumroad. Confirmed automatically.",auto:true},
+  {id:"cryptobot",name:"Crypto Bot",note:"USDT, TON or BTC via @CryptoBot. Confirmed automatically.",auto:true},
+  {id:"usdt",name:"USDT transfer (TRC20)",note:"Send to our wallet and upload the screenshot.",auto:false}
+];
+const WALLET="TQ7xN2s9Dk4Vw1Lr8Pz3Hm6Yc5Jb2Fa9Ue";
+const priceOf=k=>{const p=PRICES[k],f=S.disc?0.85:1;return {usd:(p.usd*f).toFixed(2),stars:Math.round(p.stars*f)};};
+
+const ev=(t,a,type)=>({t,a,type:type||"in"});
+const USERS=[
+  {id:"me",name:"Alex Moreno",handle:"alexcuts",joined:"2026-10-24",country:"US",events:[ev("10-24 09:12","/start ref_lenagrades"),ev("10-24 09:12","bot → welcome message + app button","bot"),ev("10-24 09:13","opened app")]},
+  {id:"u2",name:"Lena Fischer",handle:"lenagrades",plan:"pro",until:"2026-11-20",inv:2,joined:"2026-10-20",country:"DE",events:[ev("10-20 18:40","/start"),ev("10-20 18:41","opened app"),ev("10-21 11:02","paid Pro · Telegram Stars · 600 ⭐","sys"),ev("10-26 13:55","tab LUTs"),ev("10-26 13:56","preview Kodak 2383 emulation"),ev("10-26 13:57","get Kodak 2383 emulation")]},
+  {id:"u3",name:"Marco Rossi",handle:"marco.edits",plan:"free",inv:3,joined:"2026-10-21",country:"IT",events:[ev("10-21 20:10","/start ref_sofiacolor"),ev("10-21 20:11","opened app"),ev("10-22 08:30","invite link copied"),ev("10-25 19:02","friend joined: @tbecker","sys"),ev("10-26 12:20","tab Overlays"),ev("10-26 12:21","get 35mm Burn transitions")]},
+  {id:"u4",name:"Jordan Lee",handle:"jlee_films",plan:"free",inv:1,joined:"2026-10-25",country:"US",payPending:true,events:[ev("10-25 22:01","/start"),ev("10-25 22:02","opened app"),ev("10-25 22:03","offer −15% shown"),ev("10-25 22:04","tap Get the discount"),ev("10-25 22:06","method USDT transfer"),ev("10-25 22:19","sent payment screenshot in chat"),ev("10-25 22:19","bot → /check_payment #1041 queued for review","bot")]},
+  {id:"u5",name:"Sofia Martins",handle:"sofiacolor",plan:"pro",until:"2026-12-02",inv:5,joined:"2026-10-12",country:"PT",events:[ev("10-12 10:00","/start"),ev("10-14 16:45","friend 5/5 joined → Director","sys"),ev("10-24 00:00","paid Pro · Gumroad · $12","sys"),ev("10-26 09:31","tab Course"),ev("10-26 09:32","watch lesson 04")]},
+  {id:"u6",name:"Tom Becker",handle:"tbecker",plan:"free",inv:0,joined:"2026-10-25",country:"UK",events:[ev("10-25 19:02","/start ref_marco.edits"),ev("10-25 19:03","opened app"),ev("10-25 19:05","locked: Music video transitions (needs 5 friends)")]},
+  {id:"u7",name:"Aiko Tanaka",handle:"aiko.mv",plan:"free",inv:5,joined:"2026-10-18",country:"FR",payPending:true,events:[ev("10-18 14:20","/start"),ev("10-23 10:11","friend 5/5 joined → Director","sys"),ev("10-26 13:40","method USDT transfer"),ev("10-26 13:52","uploaded payment screenshot in app"),ev("10-26 13:52","bot → /check_payment #1042 queued for review","bot")]},
+  {id:"u8",name:"Noah Brooks",handle:"noahbrooks",plan:"free",inv:0,joined:"2026-10-16",country:"CA",events:[ev("10-16 21:00","/start"),ev("10-16 21:02","opened app"),ev("10-17 09:15","get Silver B&W")]},
+  {id:"u9",name:"Emma Dubois",handle:"emmadbs",plan:"free",inv:1,joined:"2026-10-26",country:"FR",events:[ev("10-26 08:05","/start ref_aiko.mv"),ev("10-26 08:06","opened app"),ev("10-26 08:06","offer −15% shown"),ev("10-26 08:07","tap Maybe later")]},
+  {id:"u10",name:"Liam Carter",handle:"liamcuts",plan:"pro",until:"2026-10-29",inv:0,joined:"2026-09-29",country:"US",events:[ev("09-29 17:30","/start"),ev("09-29 17:40","paid Pro · Crypto Bot · 12 USDT","sys"),ev("10-26 07:50","bot → Pro ends in 3 days, renew?","bot")]}
+];
+const shotSvg=c=>"data:image/svg+xml,"+encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 72 96'><rect width='72' height='96' fill='#f4f4f6'/><rect x='8' y='10' width='56' height='8' rx='2' fill='${c}'/><rect x='8' y='26' width='40' height='5' rx='2' fill='#c9c9d1'/><text x='36' y='54' font-size='11' text-anchor='middle' font-family='monospace' fill='#222'>-12 USDT</text><rect x='8' y='66' width='56' height='5' rx='2' fill='#c9c9d1'/><rect x='8' y='76' width='30' height='5' rx='2' fill='#c9c9d1'/></svg>`);
+const PAYMENTS=[
+  {id:1041,uid:"u4",method:"USDT transfer",amount:"10.20 USDT",plan:"m",date:"10-25 22:19",status:"pending",shot:shotSvg("#26a17b"),via:"bot chat"},
+  {id:1042,uid:"u7",method:"USDT transfer",amount:"10.20 USDT",plan:"m",date:"10-26 13:52",status:"pending",shot:shotSvg("#26a17b"),via:"app"},
+  {id:1039,uid:"u5",method:"Gumroad",amount:"$12.00",plan:"m",date:"10-24 00:00",status:"approved",auto:true},
+  {id:1038,uid:"u2",method:"Telegram Stars",amount:"600 ⭐",plan:"m",date:"10-21 11:02",status:"approved",auto:true}
+];
+const READY=[["Anamorphic flare pack","overlays",1],["Fuji Eterna LUTs","luts",0],["Foley hits pack","sfx",1],["AI prompt pack: neon nights","ai",3],["Film burn transitions vol.2","overlays",3],["Lens distortion presets","plugins",5],["Lighting diagrams: hard light","production",0],["Bleach bypass LUTs","luts",9],["Cinematic risers vol.2","sfx",1],["Camera shake vol.2","plugins",3],["Shot list: performance video","production",1],["Prism FX overlays","overlays",9],["Day-for-night LUTs","luts",5],["Room tones pack","sfx",0],["AI prompt pack: dream sequences","ai",9],["Glitch transitions for AE","plugins",9],["Smoke & fog elements","overlays",5],["Typewriter & paper SFX","sfx",3],["Halation glow presets","plugins",9],["Music video LUTs vol.2","luts",3],["Rain & storm ambience","sfx",9],["Grain pack 16mm","overlays",1],["Storyboard templates","production",3],["AI prompt pack: product shots","ai",5]];
+const slots=(from,n)=>{const out=[];let d=new Date(from+"T00:00:00Z");while(out.length<n){const w=d.getUTCDay();if(w===1||w===3||w===5)out.push(d.toISOString().slice(0,10));d=new Date(d.getTime()+864e5);}return out;};
+const SCHED=READY.map((r,i)=>({id:"s"+i,name:r[0],cat:r[1],tier:r[2],date:null}));
+slots("2026-10-27",16).forEach((d,i)=>SCHED[i].date=d);
+const BROADCASTS=[{date:"10-24 18:00",aud:"All users",text:"New drop: Neon Noir LUT pack is live in the app 🎬",reach:10}];
+
+function logMe(a,type){const u=USERS[0];const d=new Date();u.events.push(ev(`${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")} ${hhmm()}`,a,type));if(S.tab==="admin"&&S.adm==="users"&&S.selUser==="me")renderAdmin();}
+const meSync=()=>{const u=USERS[0];u.plan=S.plan;u.until=S.until;u.inv=S.inv;u.payPending=!!S.payPending;};
+const statusOf=u=>u.plan==="pro"?"Pro":RANKS.filter(r=>(u.inv||0)>=r.k).pop().name;
+
+// ---------- payment page ----------
+function openPay(){meSync();renderPay();openSheet("paySheet");logMe("opened payment page");}
+function renderPay(){
+  const k=S.payPlan||"m",m=METHODS.find(x=>x.id===(S.payMethod||"stars")),pr=priceOf(k);
+  const pend=PAYMENTS.find(p=>p.id===S.payPending&&p.status==="pending");
+  let action="";
+  if(pend){action=`<div class="review"><b>Payment #${pend.id} is under review</b><div class="hint" style="margin:4px 0 0">We check transfers within an hour. Pro turns on automatically and the bot will message you.</div>
+    <div class="mini"><span>✓ screenshot received</span><span>✓ /check_payment #${pend.id} started</span><span>… waiting for confirmation</span></div></div>`;}
+  else if(m.auto){action=`<button class="btn" id="payNow" style="width:100%;margin-top:12px">${m.id==="stars"?`Pay ${pr.stars} ⭐`:`Pay $${pr.usd}`} with ${m.name}</button>`;}
+  else{action=`<div class="hint" style="margin:12px 0 0">Send exactly <b style="color:var(--fg)">${pr.usd} USDT</b> on the TRC20 network to:</div>
+    <div class="wallet"><code id="walletAddr">${WALLET}</code><button class="btn ghost" id="walletCopy">Copy</button></div>
+    <label class="upload" for="shotIn">Upload payment screenshot<input type="file" id="shotIn" accept="image/*"></label>
+    <div class="hint" style="margin-top:8px">You can also send the screenshot to @DirectorTricksBot in chat. Either way the bot starts the payment check automatically.</div>`;}
+  $("payBody").innerHTML=`${S.disc?`<div class="disc-banner">−15% new member discount applied</div>`:""}
+    <div class="group-label" style="margin-top:14px">Plan</div>
+    <div class="price-opts">${Object.entries(PRICES).map(([key,p])=>{const q=priceOf(key);return `<button class="opt" data-pplan="${key}" aria-pressed="${key===k}"><span><span class="on">${p.label}</span><br><span class="os">${p.note}</span></span><span class="op">${S.disc?`<s>$${p.usd}</s>`:""}$${q.usd}</span></button>`;}).join("")}</div>
+    <div class="group-label" style="margin-top:14px">Payment method</div>
+    <div class="price-opts">${METHODS.map(x=>`<button class="opt" data-pmethod="${x.id}" aria-pressed="${x.id===m.id}"><span><span class="on">${x.name}</span><br><span class="os">${x.note}</span></span><span class="op">${x.auto?"auto":"manual"}</span></button>`).join("")}</div>
+    ${action}`;
+  const pn=$("payNow");if(pn)pn.onclick=()=>{const p=PRICES[k];S.plan="pro";S.until=plusDays(p.days);S.disc=false;
+    PAYMENTS.unshift({id:1043+PAYMENTS.length,uid:"me",method:m.name,amount:m.id==="stars"?pr.stars+" ⭐":"$"+pr.usd,plan:k,date:new Date().toISOString().slice(5,10)+" "+hhmm(),status:"approved",auto:true});
+    logMe(`paid Pro · ${m.name}`,"sys");logMe(`bot → Payment confirmed. Pro is active until ${fmt(S.until)}`,"bot");openSheet(null);render();toast("Payment confirmed. Pro is active");};
+  const wc=$("walletCopy");if(wc)wc.onclick=()=>{(navigator.clipboard?navigator.clipboard.writeText(WALLET):Promise.reject()).then(()=>toast("Wallet address copied"),()=>toast("Select the address and copy it"));};
+  const si=$("shotIn");if(si)si.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const id=1043+PAYMENTS.length;
+    PAYMENTS.unshift({id,uid:"me",method:"USDT transfer",amount:pr.usd+" USDT",plan:k,date:new Date().toISOString().slice(5,10)+" "+hhmm(),status:"pending",shot:r.result,via:"app"});
+    S.payPending=id;logMe("uploaded payment screenshot in app");logMe(`bot → /check_payment #${id} queued for review`,"bot");meSync();renderPay();renderProfile();toast("Screenshot received. Checking payment…");};r.readAsDataURL(f);};
+}
+
+// ---------- resource editor ----------
+function resView(it){const tab=TABS.find(t=>t.id===it.cat)||{label:it.cat};const sched=typeof it.id==="string";
+  const st=sched?(it.date?(it.date<=todayISO()?"Published "+fmt(it.date):"Scheduled for "+fmt(it.date)):"Not scheduled"):(it.hidden?"Hidden":"Live since "+fmt(it.date));
+  const row=(k,v)=>`<div class="kv"><span>${k}</span><b>${v||'<i class="none">not set</i>'}</b></div>`;
+  $("editTitle").textContent="Resource";
+  $("editBody").innerHTML=`<div class="res-prev" style="background:${it.img?`#000 center/contain no-repeat url('${it.img}')`:`linear-gradient(135deg,${(it.g||["#2a0c10","#e3262f"])[0]},${(it.g||["#2a0c10","#e3262f"])[1]})`}">${it.img?"":`<span>${esc(tab.label)}</span>`}</div>
+    <h4 class="res-name">${esc(it.name)}</h4><div class="pill${it.date&&it.date>todayISO()?" pend":""}" style="justify-self:start">${st}</div>
+    <div class="kvs">${row("Section",esc(tab.label)+(it.f?" · "+esc(it.f):""))}${it.shop?row("Brand",esc(it.brand))+row("Affiliate link",it.link?`<a href="${esc(it.link)}" target="_blank" rel="noopener">${esc(it.link)}</a>`:""):row("Access",tierName(it.tier??0))+row("Value","$"+(it.val||0))+row("File link",it.link?esc(it.link):"")+row("Archive password",it.pass?"••••••":"")}
+      ${row("Preview",it.img?"uploaded":(it.prev?esc(it.prev):""))}${row("Size",esc(it.size||""))}${row("Software",esc((it.soft||[]).join(", ")))}${row("Publish date",it.date?fmt(it.date):"")}</div>
+    <div class="btnrow" style="margin-top:12px"><button class="btn" id="resEdit" style="flex:1">Edit</button>${sched?"":`<button class="btn ghost" id="resOpen" style="flex:1">Open as user</button>`}</div>`;
+  $("resEdit").onclick=()=>openEdit(it);const ro=$("resOpen");if(ro)ro.onclick=()=>{openSheet(null);openViewer(it.id);};
+  openSheet("editSheet");}
+function openEdit(id){const it=typeof id==="object"?id:ITEMS.find(i=>i.id===id);const sched=typeof it.id==="string";const tab=TABS.find(t=>t.id===it.cat)||{filters:[]};it.soft=it.soft||[];it.g=it.g||["#2a0c10","#e3262f"];it.size=it.size||"";it.val=it.val||0;it.f=it.f||(tab.filters||[])[0]||"";
+  $("editTitle").textContent="Edit resource";
+  $("editBody").innerHTML=`<form class="form" id="editForm" style="margin-top:12px">
+    <label>Name<input name="name" value="${esc(it.name)}"></label>
+    <div class="two"><label>Section<select name="cat">${TABS.filter(t=>t.filters).map(t=>`<option value="${t.id}"${t.id===it.cat?" selected":""}>${t.label}</option>`).join("")}</select></label>
+      <label>Filter<select name="f">${(tab.filters||[]).map(f=>`<option${f===it.f?" selected":""}>${f}</option>`).join("")}</select></label></div>
+    <div class="two"><label>Access<select name="tier">${TIERS.map(([v,n])=>`<option value="${v}"${v===it.tier?" selected":""}>${n}</option>`).join("")}</select></label>
+      <label>Value, $<input name="val" type="number" min="0" value="${it.val}"></label></div>
+    ${it.shop?`<label>Affiliate link<input name="link" value="${esc(it.link||"")}" placeholder="https://brand.com/?ref=directorstricks"></label><input type="hidden" name="pass" value="">`:`<label>File link<input name="link" value="${esc(it.link||(sched?"":"https://t.me/c/1987/"+(400+it.id)))}" placeholder="Telegram file or cloud link"></label>
+    <label>Archive password<input name="pass" value="${esc(it.pass||"")}" placeholder="No password"></label>`}
+    <label>Preview photo or video link<input name="prev" value="${esc(it.prev||"")}" placeholder="Paste a link or upload in the bot"></label>
+    <div class="two"><label>Publish date<input name="date" type="date" value="${it.date}"></label>
+      <label>Size<input name="size" value="${esc(it.size)}"></label></div>
+    <label class="check"><input type="checkbox" name="hidden"${it.hidden?" checked":""}> Hide from subscribers</label>
+    <button class="btn" type="submit">Save changes</button></form>`;
+  $("editForm").cat.onchange=e=>{const t=TABS.find(x=>x.id===e.target.value);e.target.form.f.innerHTML=t.filters.map(f=>`<option>${f}</option>`).join("");};
+  $("editForm").onsubmit=e=>{e.preventDefault();const F=e.target,ch={name:F.name.value.trim()||it.name,cat:F.cat.value,f:F.f.value,tier:+F.tier.value,val:+F.val.value||0,link:F.link.value.trim(),pass:F.pass.value,prev:F.prev.value.trim(),date:F.date.value||it.date,size:F.size.value.trim(),hidden:F.hidden.checked};
+    Object.assign(it,ch);if(sched){if(it.date){S.calDay=it.date;S.calMonth=it.date.slice(0,7);}}else{S.edits=S.edits||{};S.edits[it.id]=ch;}render();resView(it);toast("Resource saved");};
+  openSheet("editSheet");}
+
+// ---------- admin tab ----------
+function renderAdmin(){
+  meSync();const pend=PAYMENTS.filter(p=>p.status==="pending").length;const a=S.adm||"overview";
+  const nav=[["overview","Overview"],["users","Users"],["payments","Payments",pend],["schedule","Schedule"],["sources","Sources"],["broadcast","Broadcast"]];
+  let body="";
+  if(a==="overview")body=admOverview(pend);else if(a==="users")body=admUsers();else if(a==="payments")body=admPayments();else if(a==="schedule")body=admSchedule();else if(a==="sources")body=admSources();else body=admBroadcast();
+  $("panel").innerHTML=`<div class="section-label" style="margin-top:0"><span>Admin panel</span><span class="sample">sample data</span></div>
+    <div class="adm-nav">${nav.map(([k,l,c])=>`<button data-adm="${k}" aria-pressed="${k===a}">${l}${c?`<span class="count">${c}</span>`:""}</button>`).join("")}</div>${body}`;
+  bindAdmin(a);
+}
+function admOverview(pend){
+  const pro=USERS.filter(u=>u.plan==="pro").length,today=USERS.filter(u=>u.joined===todayISO()).length;
+  const days=Array.from({length:7},(_,i)=>{const d=new Date(Date.now()-(6-i)*864e5).toISOString().slice(0,10);return {d,n:USERS.filter(u=>u.joined===d).length};});
+  const mx=Math.max(1,...days.map(x=>x.n));
+  const feed=USERS.flatMap(u=>u.events.map(e=>({...e,u}))).sort((x,y)=>y.t.localeCompare(x.t)).slice(0,8);
+  return `<div class="kpis">
+    <div class="kpi"><div class="n">${USERS.length}</div><div class="l">Users in bot</div></div>
+    <div class="kpi"><div class="n">${today}</div><div class="l">New today</div></div>
+    <div class="kpi"><div class="n">${pro}</div><div class="l">Pro active</div></div>
+    <div class="kpi${pend?" alert":""}"><div class="n">${pend}</div><div class="l">Payments to check</div></div>
+    <div class="kpi"><div class="n">${USERS.reduce((s,u)=>s+(u.inv||0),0)}</div><div class="l">Friends invited</div></div>
+    <div class="kpi"><div class="n">${SCHED.filter(s=>s.date&&s.date>=todayISO()).length}</div><div class="l">Drops scheduled</div></div></div>
+    <div class="card"><h4><span>New users, last 7 days</span></h4><div class="bars">${days.map(x=>`<div><b>${x.n}</b><i style="height:${x.n/mx*80}%"></i><span>${x.d.slice(8)}</span></div>`).join("")}</div></div>
+    <div class="card"><h4><span>Latest actions</span><button class="link" data-adm="users" style="padding:0">All users</button></h4><div class="feed">${feed.map(e=>`<div><time>${e.t}</time><span><b>@${esc(e.u.handle)}</b> ${esc(e.a)}</span></div>`).join("")}</div></div>`;
+}
+function admUsers(){
+  const u=USERS.find(x=>x.id===S.selUser);
+  if(!u){const q=(S.uq||"").toLowerCase();const list=USERS.filter(x=>(x.name+" "+x.handle).toLowerCase().includes(q));
+    return `<input class="search" id="uq" type="search" placeholder="Search users…" value="${esc(S.uq||"")}" style="margin:0 0 10px">
+      <div class="ulist">${list.map(x=>`<button class="urow" data-user="${x.id}"><div class="avatar">${x.name[0]}</div><div style="min-width:0"><div class="un">${esc(x.name)}</div><div class="uh">@${esc(x.handle)} · ${x.country} · joined ${x.joined.slice(5)}</div></div>
+        <span class="pill${x.payPending?" pend":x.plan==="pro"?" pro":""}">${x.payPending?"Payment check":statusOf(x)}</span></button>`).join("")}</div>`;}
+  return `<button class="link" data-user="" style="padding:0 0 10px">← All users</button>
+   <div class="udetail"><div class="uprof"><div class="row1"><div class="avatar">${u.name[0]}</div><div style="min-width:0"><div class="acc-name">${esc(u.name)}</div><div class="acc-handle">@${esc(u.handle)} · ${u.country}</div></div></div>
+     <div class="kv"><div><span>Status</span><span class="pill${u.plan==="pro"?" pro":""}">${statusOf(u)}</span></div>
+       <div><span>Plan</span><span>${u.plan==="pro"?"Pro until "+fmt(u.until):"Free"}</span></div>
+       <div><span>Friends invited</span><span>${u.inv||0} / 5</span></div><div><span>Joined</span><span>${fmt(u.joined)}</span></div>
+       <div><span>Payment</span><span>${u.payPending?"waiting for check":"—"}</span></div></div>
+     <div class="btnrow"><button class="btn sm gold" data-uact="grant">Give Pro 30 days</button><button class="btn sm ghost" data-uact="free">Set Free</button><button class="btn sm ghost" data-uact="inv">+1 friend</button></div></div>
+   <div class="term"><div class="term-head"><span>@${esc(u.handle)} · activity</span><span>type /help</span></div>
+     <div class="term-body" id="termBody">${u.events.map(e=>`<div class="tl ${e.type}"><span class="tt">[${e.t}]</span> ${esc(e.a)}</div>`).join("")}</div>
+     <form id="termForm"><span>&gt;</span><input id="termIn" autocomplete="off" placeholder="Message to @${esc(u.handle)} or /help"></form></div></div>`;
+}
+function admPayments(){
+  const list=[...PAYMENTS].sort((a,b)=>(a.status==="pending"?0:1)-(b.status==="pending"?0:1)||b.id-a.id);
+  return `<div class="hint">Stars, Gumroad and Crypto Bot confirm on their own. Manual transfers land here after the user sends a screenshot in the app or in the bot chat.</div><div class="pay-q">${list.map(p=>{const u=USERS.find(x=>x.id===p.uid);
+    return `<div class="pq"><div class="shot" style="${p.shot?`background-image:url('${p.shot}')`:""}">${p.shot?"":"auto"}</div><div style="min-width:0">
+      <div class="pt">#${p.id} · ${esc(u.name)} <span class="pill${p.status==="pending"?" pend":p.status==="approved"?" pro":""}">${p.status}</span></div>
+      <div class="pm">${p.method} · ${p.amount} · ${PRICES[p.plan].label} · ${p.date}${p.via?" · via "+p.via:""}</div>
+      ${p.status==="pending"?`<div class="btnrow"><button class="btn sm" data-pay-ok="${p.id}">Approve</button><button class="btn sm ghost" data-pay-no="${p.id}">Reject</button>${p.shot?`<button class="btn sm ghost" data-pay-shot="${p.id}">Open screenshot</button>`:""}</div>`:""}</div></div>`;}).join("")}</div>`;
+}
+function admSchedule(){
+  const ym=S.calMonth||todayISO().slice(0,7),[y,m]=ym.split("-").map(Number);
+  const first=new Date(Date.UTC(y,m-1,1)),startW=(first.getUTCDay()+6)%7,start=new Date(first.getTime()-startW*864e5);
+  const cells=Array.from({length:42},(_,i)=>new Date(start.getTime()+i*864e5).toISOString().slice(0,10));
+  const sel=S.calDay||(SCHED.filter(x=>x.date&&x.date>=todayISO()).map(x=>x.date).sort()[0])||todayISO(),dayItems=SCHED.filter(s=>s.date===sel),unsched=SCHED.filter(s=>!s.date).length;
+  const MN=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  return `<div class="hint">Every prepared resource gets a publish date. On that date the server adds it to the app, posts it to the channel and, if you want, sends a broadcast.</div>
+   <div class="card" style="margin-top:0"><div class="cal-head"><button class="icon-btn" data-cal="-1" aria-label="Previous month">‹</button><b>${MN.at(m-1)} ${y}</b><button class="icon-btn" data-cal="1" aria-label="Next month">›</button></div>
+   <div class="cal">${["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d=>`<div class="dow">${d}</div>`).join("")}
+   ${cells.map(d=>{const its=SCHED.filter(s=>s.date===d);return `<button data-day="${d}" class="${d.slice(0,7)!==ym?"out":""}${d===todayISO()?" today":""}" aria-pressed="${d===sel}"><span>${+d.slice(8)}</span><span class="dots">${its.map(s=>`<i style="background:${CATC[s.cat]}"></i>`).join("")}</span></button>`;}).join("")}</div>
+   <div class="legend">${Object.entries(CATC).map(([k,c])=>`<span><i style="background:${c}"></i>${k}</span>`).join("")}</div></div>
+   <div class="card"><h4><span>${fmt(sel)} · ${dayItems.length} drop${dayItems.length===1?"":"s"}</span><span>${unsched} not scheduled</span></h4>
+   ${dayItems.length?dayItems.map(s=>`<div class="sched-row"><i style="background:${CATC[s.cat]}"></i><button class="sopen" data-sopen="${s.id}" style="min-width:0"><div class="sn">${esc(s.name)}</div><div class="sm">${s.cat}${s.f?" · "+esc(s.f):""} · ${tierName(s.tier)} · details ›</div></button>
+     <div class="btnrow"><select data-stier="${s.id}" aria-label="Access">${TIERS.map(([v,n])=>`<option value="${v}"${v===s.tier?" selected":""}>${n}</option>`).join("")}</select><input type="date" data-sdate="${s.id}" value="${s.date}" aria-label="Move to date"></div></div>`).join(""):`<div class="empty" style="padding:12px 0">Nothing goes out this day.</div>`}
+   ${unsched?`<button class="btn" id="autoPlan" style="width:100%;margin-top:12px">Auto-plan ${unsched} remaining (Mon, Wed, Fri)</button>`:""}</div>`;
+}
+const pad=n=>String(n).padStart(2,"0");
+const isoLocal=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const nowISO=()=>isoLocal(new Date());
+function atDay(off,h){const d=new Date();d.setDate(d.getDate()+off);d.setHours(h,0,0,0);return isoLocal(d);}
+function whenTxt(v){const d=new Date(v);return d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})+" · "+v.slice(11);}
+const SRC_DEF=[{id:"src1",title:"DT Storage",handle:"@dt_storage",kind:"own",on:"queue",sec:"auto",tier:"tag",ok:true,last:"10-26 14:40",count:24},
+  {id:"src2",title:"Partner showcase",handle:"@dt_partners",kind:"partner",on:"publish",sec:"auto",tier:"0",ok:true,last:"10-26 15:02",count:122}];
+const TAGMAP=[["#plugins","plugins"],["#overlays","overlays"],["#sfx","sfx"],["#luts","luts"],["#ai","ai"]],ACCMAP=[["#free",0],["#f1",1],["#f3",3],["#f5",5],["#pro",9]];
+function parseCaption(t){const low=t.toLowerCase(),lines=t.split("\n").map(x=>x.trim()).filter(Boolean);
+  const sec=(TAGMAP.find(([k])=>low.includes(k))||[,"(default section)"])[1],acc=ACCMAP.find(([k])=>low.includes(k));
+  const tab=TABS.find(x=>x.id===sec);const f=tab&&tab.filters?tab.filters.find(x=>low.includes("#"+x.toLowerCase().replace(/[^a-z0-9]/g,""))):null;
+  return {name:(lines[0]||"").replace(/#\S+/g,"").trim()||"(first line of the caption)",sec:tab?tab.label:sec,f:f||"(first filter)",tier:acc?tierName(acc[1]):"(default access)"};}
+function admSources(){S.sources=S.sources||SRC_DEF;const cap=S.srcTest??"Neon Noir LUT pack\n18 LUTs for Premiere and Resolve\n#luts #musicvideo #f3";const r=parseCaption(cap);
+  const OPT=(arr,v)=>arr.map(([k,n])=>`<option value="${k}"${String(k)===String(v)?" selected":""}>${n}</option>`).join("");
+  return `<div class="hint" style="margin:0 0 10px">The bot is an admin in each source channel. Every new post there is read automatically: the first photo or video becomes the preview, the caption becomes the name and description, tags set the section and access. Older posts come in once from the channel export.</div>
+  ${S.sources.map(x=>`<div class="card src"><h4><span>${esc(x.title)} <small>${esc(x.handle)}</small></span><span class="pill${x.ok?"":" pend"}">${x.ok?"Connected":"Bot is not admin yet"}</span></h4>
+    <div class="form" style="margin-top:8px"><div class="two"><label>Type<select data-src="${x.id}" data-k="kind">${OPT([["own","My packs: file attached to the post"],["partner","Partner showcase: preview + store link"]],x.kind)}</select></label>
+      <label>New post goes to<select data-src="${x.id}" data-k="on">${OPT([["queue","Schedule queue (Auto-plan)"],["publish","Published right away"],["draft","Drafts, I review first"]],x.on)}</select></label></div>
+    <div class="two"><label>Section<select data-src="${x.id}" data-k="sec">${OPT([["auto","From tags (#luts, #sfx …)"],...TABS.filter(t=>t.filters).map(t=>[t.id,t.label])],x.sec)}</select></label>
+      <label>Access${x.kind==="partner"?`<select disabled><option>Open to all (link out)</option></select>`:`<select data-src="${x.id}" data-k="tier">${OPT([["tag","From tags (#free #f3 #pro)"],...TIERS],x.tier)}</select>`}</label></div></div>
+    <div class="sm" style="margin-top:8px">Last post read ${x.last} · ${x.count} resources imported${x.kind==="own"?" · files are re-sent by the bot from the channel, no links or passwords stored":" · no files, only the store link"}</div>
+    <div class="btnrow" style="margin-top:8px"><button class="btn ghost" data-srcsync="${x.id}">Check now</button><button class="btn ghost" data-srcdel="${x.id}">Disconnect</button></div></div>`).join("")}
+  <form class="form card" id="srcAdd"><h4 style="margin:0"><span>Connect a channel</span></h4>
+    <label>Channel link or @username<input name="h" placeholder="@my_storage or https://t.me/…"></label>
+    <label>Type<select name="kind">${OPT([["own","My packs: file attached to the post"],["partner","Partner showcase: preview + store link"]],"own")}</select></label>
+    <div class="hint" style="margin:0">Step 1: add the bot to the channel as admin. Step 2: paste the link here. The bot checks access and starts reading new posts.</div>
+    <button class="btn" type="submit">Connect</button></form>
+  <div class="card"><h4><span>Caption check</span><span class="sm">how the bot reads a post</span></h4>
+    <div class="form"><textarea id="srcTest">${esc(cap)}</textarea></div>
+    <div class="kvs"><div class="kv"><span>Name</span><b>${esc(r.name)}</b></div><div class="kv"><span>Section</span><b>${esc(r.sec)}</b></div><div class="kv"><span>Filter</span><b>${esc(r.f)}</b></div><div class="kv"><span>Access</span><b>${esc(r.tier)}</b></div></div>
+    <div class="sm" style="margin-top:8px">Tags: #plugins #overlays #sfx #luts #ai · access #free #f1 #f3 #f5 #pro · filter = its name as a tag, e.g. #musicvideo</div></div>`;
+}
+function admBroadcast(){
+  const aud=S.bAud||"all";const segs={all:["All users",USERS],free:["Free",USERS.filter(u=>u.plan!=="pro")],pro:["Pro",USERS.filter(u=>u.plan==="pro")],idle:["Inactive 7+ days",USERS.filter(u=>!u.events.some(e=>e.t.slice(0,5)>=new Date(Date.now()-7*864e5).toISOString().slice(5,10)))]};
+  const b=S.bDraft||{text:"New drop is live 🎬 Anamorphic flare pack is now in the app.",btn:"Open the app",when:""};
+  return `<div class="udetail"><form class="form card" id="bForm" style="margin-top:0">
+    <label>Audience<select name="aud">${Object.entries(segs).map(([k,[n,l]])=>`<option value="${k}"${k===aud?" selected":""}>${n} · ${l.length}</option>`).join("")}</select></label>
+    <label>Message<textarea name="text">${esc(b.text)}</textarea></label>
+    <label>Button under the message<input name="btn" value="${esc(b.btn)}" placeholder="No button"></label>
+    <div class="when"><div class="wl">Send at <span>${b.when?whenTxt(b.when):"right away"}</span></div><input type="hidden" name="when" value="${b.when}">
+      <div class="wq">${[["","Now"],[atDay(0,19),"Today 19:00"],[atDay(1,10),"Tomorrow 10:00"],[atDay(1,19),"Tomorrow 19:00"]].filter(([v])=>!v||v>nowISO()).map(([v,n])=>`<button type="button" class="chip" data-bwhen="${v}" aria-pressed="${b.when===v}">${n}</button>`).join("")}</div>
+      <div class="wdays">${Array.from({length:14},(_,i)=>atDay(i,0).slice(0,10)).map(d=>{const dt=new Date(d+"T12:00");return `<button type="button" data-bday="${d}" aria-pressed="${(b.when||"").slice(0,10)===d}"><small>${["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][dt.getDay()]}</small><b>${dt.getDate()}</b><small>${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][dt.getMonth()]}</small></button>`;}).join("")}</div>
+      ${b.when?`<div class="wtimes">${["09:00","10:00","12:00","15:00","17:00","18:00","19:00","20:00","21:00","22:00"].map(t=>{const v=b.when.slice(0,10)+"T"+t;return `<button type="button" class="chip" data-btime="${t}" aria-pressed="${b.when===v}"${v<=nowISO()?" disabled":""}>${t}</button>`;}).join("")}</div>`:`<div class="wh">Pick a day to schedule, or keep “Now”.</div>`}</div>
+    <button class="btn" type="submit">${b.when?"Schedule":"Send now"} to ${segs[aud][1].length} users</button></form>
+   <div><div class="group-label">Preview in the bot</div><div class="bubble" id="bPrev">${esc(b.text)}${b.btn?`<div class="bb">${esc(b.btn)}</div>`:""}</div>
+   <div class="card"><h4><span>History</span></h4><div class="feed">${BROADCASTS.map(x=>`<div><time>${x.date}</time><span><b>${x.aud} · ${x.reach}</b> ${esc(x.text)}</span></div>`).join("")}</div></div></div></div>`;
+}
+function bindAdmin(a){
+  const uq=$("uq");if(uq)uq.oninput=e=>{S.uq=e.target.value;const pos=e.target.selectionStart;renderAdmin();const n=$("uq");n.focus();n.setSelectionRange(pos,pos);};
+  const tb=$("termBody");if(tb)tb.scrollTop=tb.scrollHeight;
+  const tf=$("termForm");if(tf)tf.onsubmit=e=>{e.preventDefault();const u=USERS.find(x=>x.id===S.selUser),v=$("termIn").value.trim();if(!v)return;const t=new Date().toISOString().slice(5,10)+" "+hhmm();
+    if(v==="/help"){u.events.push(ev(t,"commands: /status · /grant 30 · /free · /history · any other text is sent to the user","sys"));}
+    else if(v==="/status"){u.events.push(ev(t,`status ${statusOf(u)} · ${u.plan==="pro"?"Pro until "+fmt(u.until):"Free"} · friends ${u.inv||0}/5`,"sys"));}
+    else if(v.startsWith("/grant")){const n=parseInt(v.split(" ")[1])||30;userAct(u,"grant",n);return;}
+    else if(v==="/free"){userAct(u,"free");return;}
+    else if(v==="/history"){u.events.push(ev(t,`${u.events.length} events since ${fmt(u.joined)}`,"sys"));}
+    else{u.events.push(ev(t,"you → "+v,"admin"));u.events.push(ev(t,"bot → delivered to @"+u.handle,"bot"));}
+    renderAdmin();const n=$("termIn");if(n)n.focus();};
+  const bf=$("bForm");if(bf){const setWhen=v=>{S.bDraft={text:bf.text.value,btn:bf.btn.value,when:v};S.bAud=bf.aud.value;renderAdmin();};
+    bf.querySelectorAll("[data-bwhen]").forEach(x=>x.onclick=()=>setWhen(x.dataset.bwhen));
+    bf.querySelectorAll("[data-bday]").forEach(x=>x.onclick=()=>{const cur=bf.when.value.slice(11)||"19:00";let v=x.dataset.bday+"T"+cur;if(v<=nowISO()){const t=["09:00","10:00","12:00","15:00","17:00","18:00","19:00","20:00","21:00","22:00"].find(t=>x.dataset.bday+"T"+t>nowISO());v=t?x.dataset.bday+"T"+t:atDay(1,10);}setWhen(v);});
+    bf.querySelectorAll("[data-btime]").forEach(x=>x.onclick=()=>setWhen(bf.when.value.slice(0,10)+"T"+x.dataset.btime));const upd=()=>{S.bDraft={text:bf.text.value,btn:bf.btn.value,when:bf.when.value};S.bAud=bf.aud.value;$("bPrev").innerHTML=esc(bf.text.value)+(bf.btn.value?`<div class="bb">${esc(bf.btn.value)}</div>`:"");};
+    bf.oninput=upd;bf.aud.onchange=()=>{upd();renderAdmin();};
+    bf.onsubmit=e=>{e.preventDefault();upd();if(!bf.text.value.trim()){toast("Write a message first");return;}const segName=bf.aud.options[bf.aud.selectedIndex].text.split(" · ")[0];
+      const reach=+bf.aud.options[bf.aud.selectedIndex].text.split(" · ")[1];const when=bf.when.value?whenTxt(bf.when.value):new Date().toISOString().slice(5,10)+" "+hhmm();
+      BROADCASTS.unshift({date:when,aud:segName+(bf.when.value?" (scheduled)":""),text:bf.text.value,reach});S.bDraft=null;renderAdmin();toast(bf.when?.value?`Scheduled for ${when}`:`Sent to ${reach} users`);};}
+  document.querySelectorAll("[data-src]").forEach(el=>el.onchange=()=>{const x=S.sources.find(z=>z.id===el.dataset.src);x[el.dataset.k]=el.value;renderAdmin();toast("Source updated");});
+  document.querySelectorAll("[data-srcsync]").forEach(el=>el.onclick=()=>{const x=S.sources.find(z=>z.id===el.dataset.srcsync);x.last=new Date().toISOString().slice(5,10)+" "+hhmm();renderAdmin();toast("No new posts in "+x.handle);});
+  document.querySelectorAll("[data-srcdel]").forEach(el=>el.onclick=()=>{S.sources=S.sources.filter(z=>z.id!==el.dataset.srcdel);renderAdmin();toast("Channel disconnected");});
+  const sa=$("srcAdd");if(sa)sa.onsubmit=e=>{e.preventDefault();const h=sa.h.value.trim();if(!h){toast("Paste the channel link");return;}const handle=h.startsWith("@")?h:"@"+h.replace(/^https?:\/\/t\.me\//,"").replace(/\/.*$/,"");
+    S.sources.push({id:"src"+Date.now(),title:handle.slice(1),handle,kind:sa.kind.value,on:"queue",sec:"auto",tier:"tag",ok:false,last:"—",count:0});renderAdmin();toast("Add the bot as admin, then press Check now");};
+  const stt=$("srcTest");if(stt)stt.oninput=()=>{S.srcTest=stt.value;const pos=stt.selectionStart;renderAdmin();const n=$("srcTest");n.focus();n.setSelectionRange(pos,pos);};
+  const ap=$("autoPlan");if(ap)ap.onclick=()=>{const last=SCHED.filter(s=>s.date).map(s=>s.date).sort().pop()||todayISO();const rest=SCHED.filter(s=>!s.date);slots(new Date(Date.parse(last)+864e5).toISOString().slice(0,10),rest.length).forEach((d,i)=>rest[i].date=d);renderAdmin();toast(`${rest.length} resources scheduled`);};
+}
+function userAct(u,act,n){const t=new Date().toISOString().slice(5,10)+" "+hhmm();
+  if(act==="grant"){u.plan="pro";u.until=plusDays(n||30);u.events.push(ev(t,`admin: Pro granted until ${fmt(u.until)}`,"sys"));u.events.push(ev(t,`bot → Your Pro plan is active until ${fmt(u.until)}`,"bot"));}
+  if(act==="free"){u.plan="free";u.events.push(ev(t,"admin: plan set to Free","sys"));}
+  if(act==="inv"){u.inv=Math.min(5,(u.inv||0)+1);u.events.push(ev(t,`admin: friends set to ${u.inv}/5 → ${statusOf(u)}`,"sys"));}
+  if(u.id==="me"){S.plan=u.plan;S.until=u.until||S.until;S.inv=u.inv||0;}
+  render();}
+function settlePay(id,ok){const p=PAYMENTS.find(x=>x.id===id),u=USERS.find(x=>x.id===p.uid),t=new Date().toISOString().slice(5,10)+" "+hhmm();
+  p.status=ok?"approved":"rejected";u.payPending=false;
+  if(ok){u.plan="pro";u.until=plusDays(PRICES[p.plan].days);u.events.push(ev(t,`admin: payment #${id} approved`,"sys"));u.events.push(ev(t,`bot → Payment confirmed. Pro is active until ${fmt(u.until)}`,"bot"));}
+  else{u.events.push(ev(t,`admin: payment #${id} rejected`,"sys"));u.events.push(ev(t,"bot → We couldn't confirm the transfer. Reply here and we'll sort it out.","bot"));}
+  if(u.id==="me"){S.payPending=null;if(ok){S.plan="pro";S.until=u.until;S.disc=false;}}
+  render();toast(ok?`#${id} approved, ${u.name} is Pro`:`#${id} rejected, user notified`);}
+
+document.addEventListener("click",e=>{
+  const x=e.target.closest("[data-adm]");if(x){S.adm=x.dataset.adm;S.selUser=null;renderAdmin();return;}
+  const us=e.target.closest("[data-user]");if(us){S.selUser=us.dataset.user||null;renderAdmin();return;}
+  const ua=e.target.closest("[data-uact]");if(ua){userAct(USERS.find(u=>u.id===S.selUser),ua.dataset.uact);return;}
+  const ok=e.target.closest("[data-pay-ok]");if(ok){settlePay(+ok.dataset.payOk,true);return;}
+  const no=e.target.closest("[data-pay-no]");if(no){settlePay(+no.dataset.payNo,false);return;}
+  const sh=e.target.closest("[data-pay-shot]");if(sh){const p=PAYMENTS.find(z=>z.id===+sh.dataset.payShot);$("vTitle").textContent=`Payment #${p.id}`;$("vKind").textContent="Screenshot";$("vHint").textContent="";$("vMeta").innerHTML=`<b>${p.method} · ${p.amount}</b>${USERS.find(u=>u.id===p.uid).name}`;$("vAction").innerHTML=`<button class="btn get" data-pay-ok="${p.id}">Approve</button>`;$("vFrame").onpointerdown=null;$("vFrame").innerHTML=`<img src="${p.shot}" alt="Payment screenshot" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain">`;$("viewer").hidden=false;return;}
+  const cd=e.target.closest("[data-cal]");if(cd){const [y,m]=(S.calMonth||todayISO().slice(0,7)).split("-").map(Number);const d=new Date(Date.UTC(y,m-1+ +cd.dataset.cal,1));S.calMonth=d.toISOString().slice(0,7);renderAdmin();return;}
+  const dy=e.target.closest("[data-day]");if(dy){S.calDay=dy.dataset.day;renderAdmin();return;}
+  const so=e.target.closest("[data-sopen]");if(so){resView(SCHED.find(s=>s.id===so.dataset.sopen));return;}
+  const ed=e.target.closest("[data-edit]");if(ed){openEdit(+ed.dataset.edit);return;}
+  const pp=e.target.closest("[data-pplan]");if(pp){S.payPlan=pp.dataset.pplan;renderPay();return;}
+  const pm=e.target.closest("[data-pmethod]");if(pm){S.payMethod=pm.dataset.pmethod;renderPay();logMe("method "+METHODS.find(z=>z.id===S.payMethod).name);return;}
+  const op=e.target.closest("[data-pay]");if(op){openPay();return;}
+  const cl=e.target.closest("[data-close]");if(cl){if(openId==="promoSheet"){S.seenPromo=true;logMe("tap Maybe later");save();}openSheet(null);return;}
+},true);
+document.addEventListener("change",e=>{
+  const st=e.target.closest("[data-stier]");if(st){SCHED.find(s=>s.id===st.dataset.stier).tier=+st.value;toast("Access updated");return;}
+  const sd=e.target.closest("[data-sdate]");if(sd&&sd.value){SCHED.find(s=>s.id===sd.dataset.sdate).date=sd.value;S.calDay=sd.value;S.calMonth=sd.value.slice(0,7);renderAdmin();toast("Moved to "+fmt(sd.value));}
+});
+$("promoGet").onclick=()=>{S.seenPromo=true;S.disc=true;logMe("tap Get the discount");openPay();};
+Object.entries(S.edits||{}).forEach(([id,ch])=>{const it=ITEMS.find(i=>i.id===+id);if(it)Object.assign(it,ch);});
+// ---------- Telegram Mini App ----------
+// Stage 1: this admin check runs in the browser and is for testing only.
+// Stage 2 moves it to the server (initData signature check), see README.
+const ADMIN_IDS=[]; // your Telegram user id, e.g. [123456789] (ask @userinfobot)
+window.TGA=window.Telegram&&Telegram.WebApp&&Telegram.WebApp.initData?Telegram.WebApp:null;
+var MEH="alexcuts";
+if(window.TGA){const T=window.TGA,u=(T.initDataUnsafe&&T.initDataUnsafe.user)||{};T.ready();T.expand();
+  S.tgAdmin=ADMIN_IDS.includes(u.id);S.role=S.tgAdmin?"admin":"subscriber";if(!S.tgAdmin&&S.tab==="admin")S.tab="latest";
+  const name=[u.first_name,u.last_name].filter(Boolean).join(" ")||"Telegram user";MEH=u.username||("id"+u.id);
+  document.querySelectorAll(".acc-name").forEach(el=>el.textContent=name);document.querySelectorAll("aside .avatar,#profileSheet .avatar").forEach(el=>el.textContent=name[0].toUpperCase());
+  const rl=$("refLink");if(rl)rl.textContent="t.me/"+((T.initDataUnsafe.receiver||{}).username||"DirectorTricksBot")+"?start=ref_"+MEH;
+  if(S.skin==="auto"&&T.colorScheme==="dark")S.skin="dark";
+  const BB=T.BackButton;const syncBack=()=>{(!$("viewer").hidden||openId)?BB.show():BB.hide();};
+  BB.onClick(()=>{if(!$("viewer").hidden)$("vClose").click();else openSheet(null);syncBack();});
+  new MutationObserver(syncBack).observe(document.body,{subtree:true,attributes:true,attributeFilter:["hidden"]});}
+render();
+if(!S.seenPromo&&S.plan!=="pro")setTimeout(()=>{if(!openId){openSheet("promoSheet");logMe("offer −15% shown");}},900);
+</script>
+
+</body>
+</html>
