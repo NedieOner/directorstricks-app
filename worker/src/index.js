@@ -316,11 +316,11 @@ async function adminApi(env, path, body, me) {
     if (!chat.ok) return { error: "Channel not found. For a private channel forward any of its posts to the bot" };
     const meBot = await tg(env, "getMe"), mem = await tg(env, "getChatMember", { chat_id: chat.result.id, user_id: meBot.result?.id });
     if (!["administrator", "creator"].includes(mem.result?.status)) return { error: "Make the bot an admin of this channel first" };
-    await env.DB.prepare("INSERT INTO sources(chat_id,title,handle,kind,last) VALUES(?,?,?,?,?) ON CONFLICT(chat_id) DO UPDATE SET ok=1, kind=excluded.kind").bind(chat.result.id, chat.result.title, chat.result.username ? "@" + chat.result.username : null, body.kind === "partner" ? "partner" : "own", now()).run();
+    await env.DB.prepare("INSERT INTO sources(chat_id,title,handle,kind,last) VALUES(?,?,?,?,?) ON CONFLICT(chat_id) DO UPDATE SET ok=1, kind=excluded.kind").bind(chat.result.id, chat.result.title, chat.result.username ? "@" + chat.result.username : null, "own", now()).run();
     return { ok: true };
   }
   if (path === "/admin/source") {
-    const f = ["kind", "on_post", "sec", "tier"].filter(k => k in body);
+    const f = ["on_post", "sec", "tier"].filter(k => k in body);
     if (body.remove) await env.DB.prepare("DELETE FROM sources WHERE chat_id=?").bind(+body.chat_id).run();
     else if (f.length) await env.DB.prepare(`UPDATE sources SET ${f.map(k => k + "=?").join(",")} WHERE chat_id=?`).bind(...f.map(k => body[k]), +body.chat_id).run();
     return { ok: true };
