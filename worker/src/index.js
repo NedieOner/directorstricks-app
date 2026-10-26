@@ -122,9 +122,9 @@ async function onChannelPost(env, post, imported) {
     if (prev) { await env.DB.prepare("UPDATE items SET file_id=?, file_type=?, size=COALESCE(size,?) WHERE id=?").bind(media.file_id, media.file_type, media.size || null, prev.id).run(); return "merged"; }
   }
   const p = caption ? parsePost(caption, src, tabs) : { cat: null, f: null, tier: null, name: null, descr: null };
-  // old posts brought in by forwarding go live with their original date
-  const status = imported ? "live" : src.on_post === "publish" ? "live" : src.on_post === "draft" ? "draft" : "scheduled";
-  const date = imported ? new Date(post.date * 1000).toISOString().slice(0, 10) : status === "scheduled" ? await nextSlot(env) : today();
+  // old posts brought in by forwarding wait in the Schedule pool (no date) until the admin plans or publishes them
+  const status = imported ? "draft" : src.on_post === "publish" ? "live" : src.on_post === "draft" ? "draft" : "scheduled";
+  const date = imported ? null : status === "scheduled" ? await nextSlot(env) : today();
   const group = post.media_group_id ? `${imported ? "fwd" : post.chat.id}:${post.media_group_id}` : null;
   // album parts arrive as separate updates at the same time: one row per album, filled in by whichever part comes
   const r = await env.DB.prepare(`INSERT INTO items(cat,f,name,descr,tier,date,status,file_id,file_type,preview_id,preview_type,size,src_chat,src_msg,src_group)
@@ -190,7 +190,7 @@ async function onUpdate(env, up) {
     if (!r) return tg(env, "sendMessage", { chat_id: from.id, text: "Nothing is being imported. Forward posts from your channel first." });
     const n = (await env.DB.prepare("SELECT COUNT(*) c FROM items WHERE id>?").bind(+r.v).first()).c;
     await env.DB.prepare("DELETE FROM settings WHERE k=?").bind(key).run();
-    return tg(env, "sendMessage", { chat_id: from.id, text: `✅ Import finished: ${n} resources added. They are live in the app; edit any of them with ✎.`, reply_markup: appButton(env) });
+    return tg(env, "sendMessage", { chat_id: from.id, text: `✅ Import finished: ${n} resources added to Admin → Schedule. Nothing is published yet: pick a date or press “Publish now” on each one.`, reply_markup: appButton(env) });
   }
   const origin = m.forward_origin?.type === "channel" ? m.forward_origin : null;
   const fwd = origin ? origin.chat : m.forward_from_chat;

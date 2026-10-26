@@ -767,15 +767,19 @@ function renderPay(){
 
 // ---------- resource editor ----------
 function resView(it){const tab=TABS.find(t=>t.id===it.cat)||{label:it.cat};const sched=typeof it.id==="string";
-  const st=sched?(it.date?(it.date<=todayISO()?"Published "+fmt(it.date):"Scheduled for "+fmt(it.date)):"Not scheduled"):(it.hidden?"Hidden":"Live since "+fmt(it.date));
+  const st=sched?(it.date?(it.date<=todayISO()?"Goes live with the next check":"Scheduled for "+fmt(it.date)):"In the pool, not scheduled"):(it.hidden?"Hidden":"Live since "+fmt(it.date));
   const row=(k,v)=>`<div class="kv"><span>${k}</span><b>${v||'<i class="none">not set</i>'}</b></div>`;
   $("editTitle").textContent="Resource";
   $("editBody").innerHTML=`<div class="res-prev" style="background:${it.img?`#000 center/contain no-repeat url('${it.img}')`:`linear-gradient(135deg,${(it.g||["#2a0c10","#e3262f"])[0]},${(it.g||["#2a0c10","#e3262f"])[1]})`}">${it.img?"":`<span>${esc(tab.label)}</span>`}</div>
     <h4 class="res-name">${esc(it.name)}</h4><div class="pill${it.date&&it.date>todayISO()?" pend":""}" style="justify-self:start">${st}</div>
-    <div class="kvs">${row("Section",esc(tab.label)+(it.f?" · "+esc(it.f):""))}${it.shop?row("Brand",esc(it.brand))+row("Affiliate link",it.link?`<a href="${esc(it.link)}" target="_blank" rel="noopener">${esc(it.link)}</a>`:""):row("Access",tierName(it.tier??0))+row("Value","$"+(it.val||0))+row("File link",it.link?esc(it.link):"")+row("Archive password",it.pass?"••••••":"")}
+    <div class="kvs">${row("Section",esc(tab.label)+(it.f?" · "+esc(it.f):""))}${it.shop?row("Brand",esc(it.brand))+row("Affiliate link",it.link?`<a href="${esc(it.link)}" target="_blank" rel="noopener">${esc(it.link)}</a>`:""):row("Access",tierName(it.tier??0))+row("Value","$"+(it.val||0))+row("File",it.hasFile?"attached, the bot sends it":(it.link?esc(it.link):""))+row("Archive password",it.pass?"••••••":"")}
       ${row("Preview",it.img?"uploaded":(it.prev?esc(it.prev):""))}${row("Size",esc(it.size||""))}${row("Software",esc((it.soft||[]).join(", ")))}${row("Publish date",it.date?fmt(it.date):"")}</div>
-    <div class="btnrow" style="margin-top:12px"><button class="btn" id="resEdit" style="flex:1">Edit</button>${sched?"":`<button class="btn ghost" id="resOpen" style="flex:1">Open as user</button>`}</div>`;
-  $("resEdit").onclick=()=>openEdit(it);const ro=$("resOpen");if(ro)ro.onclick=()=>{openSheet(null);openViewer(it.id);};
+    <div class="btnrow" style="margin-top:12px"><button class="btn" id="resEdit" style="flex:1">Edit</button>${sched?`<button class="btn gold" id="resPub" style="flex:1">Publish now</button>`:`<button class="btn ghost" id="resOpen" style="flex:1">Open as user</button>`}</div>`;
+  $("resEdit").onclick=()=>openEdit(it);
+  const rp=$("resPub");if(rp)rp.onclick=async()=>{if(!confirm(`Publish “${it.name}” now? Subscribers will see it right away.`))return;
+    if(window.LIVE){const r=await call("/admin/item",{id:it.sid,status:"live",date:todayISO()});if(r.error){toast(r.error);return;}openSheet(null);await liveBoot();}
+    else{SCHED.splice(SCHED.indexOf(it),1);ITEMS.push({...it,id:Date.now(),date:todayISO(),soft:it.soft||[],g:it.g||["#2a0c10","#e3262f"],size:it.size||"",n:it.n||"",val:it.val||0});openSheet(null);render();}
+    toast("Published. It's in the app now");};const ro=$("resOpen");if(ro)ro.onclick=()=>{openSheet(null);openViewer(it.id);};
   openSheet("editSheet");}
 function openEdit(id){const it=typeof id==="object"?id:ITEMS.find(i=>i.id===id);const sched=typeof it.id==="string";const tab=TABS.find(t=>t.id===it.cat)||{filters:[]};it.soft=it.soft||[];it.g=it.g||["#2a0c10","#e3262f"];it.size=it.size||"";it.val=it.val||0;it.f=it.f||(tab.filters||[])[0]||"";
   $("editTitle").textContent="Edit resource";
@@ -861,7 +865,10 @@ function admSchedule(){
    <div class="card"><h4><span>${fmt(sel)} · ${dayItems.length} drop${dayItems.length===1?"":"s"}</span><span>${unsched} not scheduled</span></h4>
    ${dayItems.length?dayItems.map(s=>`<div class="sched-row"><i style="background:${CATC[s.cat]}"></i><button class="sopen" data-sopen="${s.id}" style="min-width:0"><div class="sn">${esc(s.name)}</div><div class="sm">${s.cat}${s.f?" · "+esc(s.f):""} · ${tierName(s.tier)} · details ›</div></button>
      <div class="btnrow"><select data-stier="${s.id}" aria-label="Access">${TIERS.map(([v,n])=>`<option value="${v}"${v===s.tier?" selected":""}>${n}</option>`).join("")}</select><input type="date" data-sdate="${s.id}" value="${s.date}" aria-label="Move to date"></div></div>`).join(""):`<div class="empty" style="padding:12px 0">Nothing goes out this day.</div>`}
-   ${unsched?`<button class="btn" id="autoPlan" style="width:100%;margin-top:12px">Auto-plan ${unsched} remaining (Mon, Wed, Fri)</button>`:""}</div>`;
+   ${unsched?`<button class="btn" id="autoPlan" style="width:100%;margin-top:12px">Auto-plan ${unsched} remaining (Mon, Wed, Fri)</button>`:""}</div>
+   ${unsched?`<div class="card"><h4><span>Pool · ${unsched} waiting</span><span class="sm">tap to view, plan or publish</span></h4>
+     ${SCHED.filter(s=>!s.date).map(s=>`<div class="sched-row"><i style="background:${CATC[s.cat]||"#999"}"></i><button class="sopen" data-sopen="${s.id}" style="min-width:0"><div class="sn">${esc(s.name)}</div><div class="sm">${s.cat}${s.f?" · "+esc(s.f):""} · ${tierName(s.tier)} · details ›</div></button>
+       <div class="btnrow"><input type="date" data-sdate="${s.id}" aria-label="Plan for date"></div></div>`).join("")}</div>`:""}`;
 }
 const pad=n=>String(n).padStart(2,"0");
 const isoLocal=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -1069,6 +1076,7 @@ if(window.LIVE){
       const r=await call("/admin/pay",{id,plan:ok?(p.plan||"m"):"x"});toast(r.error||`#${id} ${r.result}`);await liveAdmin({user:{id:USERS.find(u=>u.id==="me")?.uid}});renderAdmin();return;}
     const us=e.target.closest("[data-user]");if(us&&us.dataset.user){setTimeout(()=>loadEvents(us.dataset.user),0);}
     const sd=e.target.closest("[data-srcdel]");if(sd){e.stopPropagation();if(!confirm("Disconnect this channel? New posts there will stop coming in."))return;await call("/admin/source",{chat_id:sd.dataset.srcdel,remove:1});S.sources=S.sources.filter(z=>z.id!==sd.dataset.srcdel);renderAdmin();return;}
+    if(e.target.id==="autoPlan"){setTimeout(async()=>{for(const it of SCHED.filter(x=>x.date))await call("/admin/item",toItem(it));toast("Plan saved");},0);}
     const ss=e.target.closest("[data-srcsync]");if(ss){e.stopPropagation();await liveBoot();toast("Updated");return;}
   },true);
   window.addEventListener("submit",async e=>{
