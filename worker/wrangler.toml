@@ -14,7 +14,7 @@ APP_ORIGIN = "https://nedieoner.github.io"
 [[d1_databases]]
 binding = "DB"
 database_name = "directortricks"
-database_id = "PUT-D1-DATABASE-ID-HERE"
+database_id = "cd01c484-bcf4-4f03-8379-84313f1620e9"
 
 [triggers]
 crons = ["*/10 * * * *"]
