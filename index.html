@@ -981,6 +981,11 @@ if(window.TGA){const T=window.TGA,u=(T.initDataUnsafe&&T.initDataUnsafe.user)||{
   const BB=T.BackButton;const syncBack=()=>{(!$("viewer").hidden||openId)?BB.show():BB.hide();};
   BB.onClick(()=>{if(!$("viewer").hidden)$("vClose").click();else openSheet(null);syncBack();});
   new MutationObserver(syncBack).observe(document.body,{subtree:true,attributes:true,attributeFilter:["hidden"]});}
+// diagnostics line in the profile menu (stage 1 only)
+(function(){const T=window.Telegram&&Telegram.WebApp,u=T&&T.initDataUnsafe&&T.initDataUnsafe.user;
+  const txt=!T?"Telegram SDK not loaded":!T.initData?"Opened outside the bot (no Telegram login data) · v3":`Telegram: @${u&&u.username||"no username"} · id ${u&&u.id} · admin ${S.tgAdmin?"yes":"no"} · v3`;
+  const el=document.createElement("div");el.id="tgDiag";el.style.cssText="font:12px/1.4 var(--body);color:var(--muted);text-align:center;padding:12px 16px 4px;user-select:all";el.textContent=txt;
+  $("profileSheet").appendChild(el);window.TG_DIAG=txt;})();
 render();
 if(!S.seenPromo&&S.plan!=="pro")setTimeout(()=>{if(!openId){openSheet("promoSheet");logMe("offer −15% shown");}},900);
 </script>
