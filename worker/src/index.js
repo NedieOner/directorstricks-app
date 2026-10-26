@@ -421,7 +421,9 @@ export default {
     if (url.pathname === "/tg" && req.method === "POST") {
       if (req.headers.get("x-telegram-bot-api-secret-token") !== env.WEBHOOK_SECRET) return new Response("forbidden", { status: 403 });
       const up = await req.json();
-      ctx.waitUntil(onUpdate(env, up).catch(e => console.log("update failed", e.stack)));
+      const kind = Object.keys(up).filter(k => k !== "update_id").join(",");
+      const note = (k, v) => env.DB.prepare("INSERT OR REPLACE INTO settings(k,v) VALUES(?,?)").bind(k, v).run().catch(() => {});
+      ctx.waitUntil(note("diag_last_update", `${now()} ${kind}`).then(() => onUpdate(env, up)).catch(e => { console.log("update failed", e.stack); return note("diag_last_error", `${now()} ${kind}: ${e.message}`); }));
       return new Response("ok");
     }
     if (url.pathname === "/setup") {
@@ -430,6 +432,13 @@ export default {
       const hook = await tg(env, "setWebhook", { url: `${url.origin}/tg`, secret_token: env.WEBHOOK_SECRET, allowed_updates: ["message", "callback_query", "pre_checkout_query", "channel_post", "my_chat_member"] });
       const menu = await tg(env, "setChatMenuButton", { menu_button: { type: "web_app", text: "Open Vault", web_app: { url: env.APP_URL } } });
       return json({ webhook: hook.ok ? "ok" : hook.description, menu: menu.ok ? "ok" : menu.description, admins: admins(env) });
+    }
+    if (url.pathname === "/diag") {
+      // open https://<worker>/diag?key=SETUP_KEY to see why updates from Telegram are not landing
+      if (!env.SETUP_KEY || url.searchParams.get("key") !== env.SETUP_KEY) return new Response("forbidden", { status: 403 });
+      const wh = await tg(env, "getWebhookInfo", {}), get = k => env.DB.prepare("SELECT v FROM settings WHERE k=?").bind(k).first().then(r => r?.v || null);
+      const cnt = t => env.DB.prepare(`SELECT COUNT(*) c FROM ${t}`).first().then(r => r.c);
+      return json({ version: "2026-10-26c", token_ok: !!(await tg(env, "getMe", {})).ok, webhook_url: wh.result?.url, expected_url: `${url.origin}/tg`, pending: wh.result?.pending_update_count, telegram_last_error: wh.result?.last_error_message || null, telegram_last_error_at: wh.result?.last_error_date ? new Date(wh.result.last_error_date * 1000).toISOString() : null, allowed: wh.result?.allowed_updates, last_update: await get("diag_last_update"), last_error: await get("diag_last_error"), items: await cnt("items"), payments: await cnt("payments"), users: await cnt("users"), admins: admins(env) });
     }
     if (url.pathname.startsWith("/img/")) return image(env, +url.pathname.slice(5), ctx, req);
     if (url.pathname.startsWith("/api/")) {
