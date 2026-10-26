@@ -293,6 +293,12 @@ input[type=range]{width:100%;accent-color:var(--red);margin-top:8px}
 .tabed .sm{font-size:12px;color:var(--muted);margin:6px 0}.fchips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .fchip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:4px 4px 4px 10px;font-size:12px;font-weight:600}
 .fchip button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0 4px}.fadd{border:1px dashed var(--line);background:transparent;color:var(--fg);border-radius:999px;padding:5px 10px;font:inherit;font-size:12px;width:130px}
+.lib{padding:4px 12px}.lib-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}.lib-row:last-child{border:0}
+.lib-row input{width:18px;height:18px;accent-color:var(--red);flex:none}.lib-x{width:18px;flex:none}.lib-row .dot{width:10px;height:10px;border-radius:50%;flex:none}
+.lib-seg{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.lib-seg button{border:1px solid var(--line);background:var(--bg);color:var(--muted);border-radius:999px;padding:6px 10px;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+.lib-seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.lib-bar{position:sticky;bottom:8px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;background:var(--surface);border:1px solid var(--line);box-shadow:0 6px 20px var(--shadow);margin-top:10px}
+.lib-bar input{border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:8px;padding:6px 8px;font:inherit;font-size:13px}
 .when{display:grid;gap:8px}.when .wl{font-size:12px;color:var(--muted);font-weight:600}.when .wl span{color:var(--fg)}
 .wq,.wtimes{display:flex;flex-wrap:wrap;gap:6px}.wq .chip,.wtimes .chip{margin:0}.wtimes .chip:disabled{opacity:.35}
 .wdays{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
@@ -804,9 +810,9 @@ function openEdit(id){const it=typeof id==="object"?id:ITEMS.find(i=>i.id===id);
 // ---------- admin tab ----------
 function renderAdmin(){
   meSync();const pend=PAYMENTS.filter(p=>p.status==="pending").length;const a=S.adm||"overview";
-  const nav=[["overview","Overview"],["users","Users"],["payments","Payments",pend],["schedule","Schedule"],["sources","Sources"],["tabs","Tabs"],["broadcast","Broadcast"]];
+  const nav=[["overview","Overview"],["users","Users"],["payments","Payments",pend],["library","Library"],["schedule","Schedule"],["sources","Sources"],["tabs","Tabs"],["broadcast","Broadcast"]];
   let body="";
-  if(a==="overview")body=admOverview(pend);else if(a==="users")body=admUsers();else if(a==="payments")body=admPayments();else if(a==="schedule")body=admSchedule();else if(a==="sources")body=admSources();else if(a==="tabs")body=admTabs();else body=admBroadcast();
+  if(a==="overview")body=admOverview(pend);else if(a==="users")body=admUsers();else if(a==="payments")body=admPayments();else if(a==="library")body=admLibrary();else if(a==="schedule")body=admSchedule();else if(a==="sources")body=admSources();else if(a==="tabs")body=admTabs();else body=admBroadcast();
   $("panel").innerHTML=`<div class="section-label" style="margin-top:0"><span>Admin panel</span><span class="sample">sample data</span></div>
     <div class="adm-nav">${nav.map(([k,l,c])=>`<button data-adm="${k}" aria-pressed="${k===a}">${l}${c?`<span class="count">${c}</span>`:""}</button>`).join("")}</div>${body}`;
   bindAdmin(a);
@@ -901,6 +907,35 @@ function admSources(){S.sources=S.sources||SRC_DEF;const cap=S.srcTest??"Neon No
     <div class="kvs"><div class="kv"><span>Name</span><b>${esc(r.name)}</b></div><div class="kv"><span>Section</span><b>${esc(r.sec)}</b></div><div class="kv"><span>Filter</span><b>${esc(r.f)}</b></div><div class="kv"><span>Access</span><b>${esc(r.tier)}</b></div></div>
     <div class="sm" style="margin-top:8px">Tags: #plugins #overlays #sfx #luts #ai · access #free #f1 #f3 #f5 #pro · filter = its name as a tag, e.g. #musicvideo</div></div>`;
 }
+// ---------- library: every resource by section, pick what goes into the bot ----------
+const libStatus=it=>SCHED.includes(it)?(it.date?"scheduled":"pool"):(it.hidden?"pool":"live");
+const LIBST={live:["Added","#e3262f"],scheduled:["Scheduled","#c4860f"],pool:["Not added","#b9b1b0"]};
+function admLibrary(){const secs=TABS.filter(t=>!t.kind);const sec=S.libSec||"all",st=S.libSt||"all";S.libSel=S.libSel||[];
+  const all=[...ITEMS.filter(i=>!i.shop),...SCHED];
+  let list=all.filter(i=>(sec==="all"||i.cat===sec)&&(st==="all"||libStatus(i)===st));
+  const ord={pool:0,scheduled:1,live:2};list.sort((a,b)=>ord[libStatus(a)]-ord[libStatus(b)]||String(b.date||"").localeCompare(String(a.date||"")));
+  const cnt=k=>all.filter(i=>(sec==="all"||i.cat===sec)&&libStatus(i)===k).length;const sel=S.libSel.filter(id=>list.some(i=>String(i.id)===id));
+  return `<div class="chips" style="margin:0 0 8px"><button class="chip" data-libsec="all" aria-pressed="${sec==="all"}">All</button>${secs.map(t=>`<button class="chip" data-libsec="${t.id}" aria-pressed="${sec===t.id}">${esc(t.label)}</button>`).join("")}</div>
+  <div class="seg lib-seg">${[["all","All"],["pool","Not added · "+cnt("pool")],["scheduled","Scheduled · "+cnt("scheduled")],["live","Added · "+cnt("live")]].map(([k,l])=>`<button data-libst="${k}" aria-pressed="${st===k}">${l}</button>`).join("")}</div>
+  <div class="card lib">${list.length?list.map(i=>{const k=libStatus(i),[lbl,c]=LIBST[k],id=String(i.id);return `<div class="lib-row">
+     ${k==="live"?`<span class="lib-x"></span>`:`<input type="checkbox" data-libpick="${id}" ${sel.includes(id)?"checked":""} aria-label="Select ${esc(i.name)}">`}
+     <i class="dot" style="background:${c}" title="${lbl}"></i>
+     <button class="sopen" data-libopen="${id}" style="min-width:0;flex:1"><div class="sn">${esc(i.name)}</div><div class="sm">${esc((TABS.find(t=>t.id===i.cat)||{label:i.cat}).label)}${i.f?" · "+esc(i.f):""} · ${tierName(i.tier||0)} · ${lbl}${k==="scheduled"?" "+fmt(i.date):""}</div></button></div>`;}).join(""):`<div class="empty" style="padding:12px 0">Nothing here. Forward posts from your channel to the bot to fill the pool.</div>`}</div>
+  ${sel.length?`<div class="lib-bar"><b>${sel.length} selected</b><button class="btn gold sm" id="libPub">Publish now</button><input type="date" id="libDate" aria-label="Schedule for"><button class="btn sm" id="libPlan">Schedule</button><button class="btn ghost sm" id="libClear">Clear</button></div>`:""}
+  <div class="legend" style="margin-top:8px"><span><i style="background:#e3262f"></i>added to the bot</span><span><i style="background:#c4860f"></i>scheduled</span><span><i style="background:#b9b1b0"></i>not added yet</span></div>`;}
+async function libApply(mode){const date=mode==="pub"?todayISO():$("libDate").value;if(!date){toast("Pick a date first");return;}
+  const its=S.libSel.map(id=>SCHED.find(x=>String(x.id)===id)).filter(Boolean);if(!its.length)return;
+  if(mode==="pub"&&!confirm(`Publish ${its.length} resource${its.length>1?"s":""} now? Subscribers will see them right away.`))return;
+  if(window.LIVE){for(const it of its){const r=await call("/admin/item",{id:it.sid,date,status:mode==="pub"?"live":"scheduled"});if(r.error){toast(r.error);return;}}S.libSel=[];await liveBoot();}
+  else{its.forEach(it=>{if(mode==="pub"){SCHED.splice(SCHED.indexOf(it),1);ITEMS.push({...it,id:Date.now()+Math.random(),date,soft:it.soft||[],g:it.g||["#2a0c10","#e3262f"],size:it.size||"",n:it.n||"",val:it.val||0});}else it.date=date;});S.libSel=[];render();}
+  toast(mode==="pub"?"Published":"Scheduled for "+fmt(date));}
+document.addEventListener("click",e=>{if(S.adm!=="library"||S.tab!=="admin")return;
+  const sc=e.target.closest("[data-libsec]");if(sc){S.libSec=sc.dataset.libsec;renderAdmin();return;}
+  const st=e.target.closest("[data-libst]");if(st){S.libSt=st.dataset.libst;renderAdmin();return;}
+  const op=e.target.closest("[data-libopen]");if(op){const id=op.dataset.libopen;const it=SCHED.find(x=>String(x.id)===id)||ITEMS.find(x=>String(x.id)===id);if(it)resView(it);return;}
+  if(e.target.id==="libPub"){libApply("pub");return;}if(e.target.id==="libPlan"){libApply("plan");return;}if(e.target.id==="libClear"){S.libSel=[];renderAdmin();return;}});
+document.addEventListener("change",e=>{const pk=e.target.closest("[data-libpick]");if(pk){S.libSel=S.libSel||[];const id=pk.dataset.libpick;S.libSel=pk.checked?[...S.libSel,id]:S.libSel.filter(x=>x!==id);renderAdmin();}});
+
 // ---------- tabs editor: main tabs and the filters inside them ----------
 const slug=t=>t.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,24)||"tab";
 function tabsDraft(){if(!S.tabDraft)S.tabDraft=JSON.parse(JSON.stringify(TABS));return S.tabDraft;}

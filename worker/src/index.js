@@ -193,7 +193,13 @@ async function onUpdate(env, up) {
     return tg(env, "sendMessage", { chat_id: from.id, text: `✅ Import finished: ${n} resources added to Admin → Schedule. Nothing is published yet: pick a date or press “Publish now” on each one.`, reply_markup: appButton(env) });
   }
   const origin = m.forward_origin?.type === "channel" ? m.forward_origin : null;
-  const fwd = origin ? origin.chat : m.forward_from_chat;
+  let fwd = origin ? origin.chat : m.forward_from_chat;
+  const hasMedia = m.photo || m.video || m.document || m.audio || m.animation;
+  if (!fwd && isAdmin(env, from.id) && hasMedia) {
+    // posts forwarded with the sender hidden, or files sent straight to the bot, go to the pool as "Uploads"
+    await env.DB.prepare("INSERT OR IGNORE INTO sources(chat_id,title,handle,last) VALUES(?,?,?,?)").bind(from.id, "Uploads (bot chat)", null, now()).run();
+    fwd = { id: from.id, title: "Uploads (bot chat)" };
+  }
   if (fwd && isAdmin(env, from.id)) {
     let src = await env.DB.prepare("SELECT * FROM sources WHERE chat_id=?").bind(fwd.id).first();
     if (!src) {
