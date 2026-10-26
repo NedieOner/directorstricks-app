@@ -103,7 +103,7 @@ async function nextSlot(env) {
   while (![1, 3, 5].includes(d.getUTCDay())) d = new Date(d.getTime() + 864e5);
   return d.toISOString().slice(0, 10);
 }
-async function onChannelPost(env, post) {
+async function onChannelPost(env, post, imported) {
   const src = await env.DB.prepare("SELECT * FROM sources WHERE chat_id=?").bind(post.chat.id).first();
   if (!src) return;
   const tabs = await getTabs(env);
@@ -112,24 +112,32 @@ async function onChannelPost(env, post) {
   if (post.photo) Object.assign(media, { preview_id: post.photo.at(-1).file_id, preview_type: "photo" });
   if (post.video) Object.assign(media, { preview_id: post.video.file_id, preview_type: "video" });
   if (post.animation) Object.assign(media, { preview_id: post.animation.file_id, preview_type: "animation" });
-  if (post.document && src.kind === "own") Object.assign(media, { file_id: post.document.file_id, file_type: "document", size: post.document.file_size ? (post.document.file_size / 1048576).toFixed(0) + " MB" : null });
-  if (post.audio && src.kind === "own") Object.assign(media, { file_id: post.audio.file_id, file_type: "audio" });
-  const group = post.media_group_id ? `${post.chat.id}:${post.media_group_id}` : null;
-  const existing = group && await env.DB.prepare("SELECT * FROM items WHERE src_group=?").bind(group).first();
-  if (existing) {
-    const p = caption ? parsePost(caption, src, tabs) : {};
-    const f = { ...p, ...media };
-    const keys = Object.keys(f).filter(k => f[k] != null && (k !== "preview_id" || !existing.preview_id));
-    if (keys.length) await env.DB.prepare(`UPDATE items SET ${keys.map(k => k + "=?").join(",")} WHERE id=?`).bind(...keys.map(k => f[k]), existing.id).run();
-    return;
+  if (post.document) Object.assign(media, { file_id: post.document.file_id, file_type: "document", size: post.document.file_size ? Math.max(1, Math.round(post.document.file_size / 1048576)) + " MB" : null });
+  if (post.audio) Object.assign(media, { file_id: post.audio.file_id, file_type: "audio" });
+  if (!caption && !media.preview_id && !media.file_id) return;
+  if (await env.DB.prepare("SELECT id FROM items WHERE src_chat=? AND src_msg=?").bind(post.chat.id, post.message_id).first()) return "dup";
+  // a file posted right after its preview post (no caption of its own) belongs to that preview
+  if (media.file_id && !caption && !post.media_group_id) {
+    const prev = await env.DB.prepare("SELECT id FROM items WHERE src_chat=? AND file_id IS NULL AND src_msg BETWEEN ? AND ? ORDER BY src_msg DESC").bind(post.chat.id, post.message_id - 3, post.message_id - 1).first();
+    if (prev) { await env.DB.prepare("UPDATE items SET file_id=?, file_type=?, size=COALESCE(size,?) WHERE id=?").bind(media.file_id, media.file_type, media.size || null, prev.id).run(); return "merged"; }
   }
-  const p = parsePost(caption, src, tabs);
-  const status = src.on_post === "publish" ? "live" : src.on_post === "draft" ? "draft" : "scheduled";
-  const date = status === "scheduled" ? await nextSlot(env) : today();
-  await env.DB.prepare(`INSERT INTO items(cat,f,name,descr,tier,date,status,shop,brand,link,file_id,file_type,preview_id,preview_type,size,src_chat,src_msg,src_group)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(p.cat, p.f, p.name, p.descr, p.tier, date, status, src.kind === "partner" ? 1 : 0, src.kind === "partner" ? src.title : null,
-    p.link, media.file_id || null, media.file_type || null, media.preview_id || null, media.preview_type || null, media.size || null, post.chat.id, post.message_id, group).run();
+  const p = caption ? parsePost(caption, src, tabs) : { cat: null, f: null, tier: null, name: null, descr: null };
+  // old posts brought in by forwarding go live with their original date
+  const status = imported ? "live" : src.on_post === "publish" ? "live" : src.on_post === "draft" ? "draft" : "scheduled";
+  const date = imported ? new Date(post.date * 1000).toISOString().slice(0, 10) : status === "scheduled" ? await nextSlot(env) : today();
+  const group = post.media_group_id ? `${imported ? "fwd" : post.chat.id}:${post.media_group_id}` : null;
+  // album parts arrive as separate updates at the same time: one row per album, filled in by whichever part comes
+  const r = await env.DB.prepare(`INSERT INTO items(cat,f,name,descr,tier,date,status,file_id,file_type,preview_id,preview_type,size,src_chat,src_msg,src_group)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ON CONFLICT(src_group) DO UPDATE SET cat=COALESCE(excluded.cat,items.cat), f=COALESCE(excluded.f,items.f), name=COALESCE(excluded.name,items.name),
+      descr=COALESCE(excluded.descr,items.descr), tier=COALESCE(excluded.tier,items.tier), file_id=COALESCE(items.file_id,excluded.file_id),
+      file_type=COALESCE(items.file_type,excluded.file_type), preview_id=COALESCE(items.preview_id,excluded.preview_id),
+      preview_type=COALESCE(items.preview_type,excluded.preview_type), size=COALESCE(items.size,excluded.size)
+    RETURNING id, src_msg`).bind(p.cat, p.f, p.name, p.descr, p.tier, date, status, media.file_id || null, media.file_type || null,
+    media.preview_id || null, media.preview_type || null, media.size || null, post.chat.id, post.message_id, group).first();
+  if (r.src_msg !== post.message_id) return "merged";
   await env.DB.prepare("UPDATE sources SET last=?, count=count+1 WHERE chat_id=?").bind(now(), post.chat.id).run();
+  return "added";
 }
 
 // ---------- Telegram webhook ----------
@@ -175,6 +183,31 @@ async function onUpdate(env, up) {
     return;
   }
   await upsertUser(env, from);
+  // import of old channel posts: the admin forwards them to the bot, then sends /done for the report
+  const key = `import_${from.id}`;
+  if (text === "/done" && isAdmin(env, from.id)) {
+    const r = await env.DB.prepare("SELECT v FROM settings WHERE k=?").bind(key).first();
+    if (!r) return tg(env, "sendMessage", { chat_id: from.id, text: "Nothing is being imported. Forward posts from your channel first." });
+    const n = (await env.DB.prepare("SELECT COUNT(*) c FROM items WHERE id>?").bind(+r.v).first()).c;
+    await env.DB.prepare("DELETE FROM settings WHERE k=?").bind(key).run();
+    return tg(env, "sendMessage", { chat_id: from.id, text: `✅ Import finished: ${n} resources added. They are live in the app; edit any of them with ✎.`, reply_markup: appButton(env) });
+  }
+  const origin = m.forward_origin?.type === "channel" ? m.forward_origin : null;
+  const fwd = origin ? origin.chat : m.forward_from_chat;
+  if (fwd && isAdmin(env, from.id)) {
+    let src = await env.DB.prepare("SELECT * FROM sources WHERE chat_id=?").bind(fwd.id).first();
+    if (!src) {
+      const meBot = await tg(env, "getMe"), mem = await tg(env, "getChatMember", { chat_id: fwd.id, user_id: meBot.result?.id });
+      if (!["administrator", "creator"].includes(mem.result?.status)) return tg(env, "sendMessage", { chat_id: from.id, text: `Make me an admin of “${fwd.title}” first, then forward the posts again.` });
+      await env.DB.prepare("INSERT OR IGNORE INTO sources(chat_id,title,handle,last) VALUES(?,?,?,?)").bind(fwd.id, fwd.title, fwd.username ? "@" + fwd.username : null, now()).run();
+    }
+    const maxId = (await env.DB.prepare("SELECT COALESCE(MAX(id),0) m FROM items").first()).m;
+    const started = await env.DB.prepare("INSERT OR IGNORE INTO settings(k,v) VALUES(?,?)").bind(key, String(maxId)).run();
+    if (started.meta.changes) await tg(env, "sendMessage", { chat_id: from.id, text: `📥 Importing from “${fwd.title}”. Forward all the posts you want, then send /done.` });
+    const post = { ...m, chat: { id: fwd.id }, message_id: origin?.message_id ?? m.forward_from_message_id ?? m.message_id, date: origin?.date ?? m.forward_date ?? m.date };
+    await onChannelPost(env, post, true);
+    return;
+  }
   if (m.photo || (m.document && /^image\//.test(m.document.mime_type || ""))) {
     // payment screenshot for a manual (USDT) transfer → admins approve in Telegram or in the app
     const fid = m.photo ? m.photo.at(-1).file_id : m.document.file_id;
@@ -183,13 +216,6 @@ async function onUpdate(env, up) {
     await tg(env, "sendMessage", { chat_id: from.id, text: `Got it. Payment #${r.id} is being checked, usually within a few hours.` });
     for (const a of admins(env)) await tg(env, "sendPhoto", { chat_id: a, photo: fid, caption: `🧾 Payment #${r.id} from ${from.first_name} (@${from.username || from.id})`, reply_markup: { inline_keyboard: [[{ text: "✅ Approve 1 month", callback_data: `pay:${r.id}:m` }, { text: "✅ 12 months", callback_data: `pay:${r.id}:y` }], [{ text: "❌ Reject", callback_data: `pay:${r.id}:x` }]] } });
     return;
-  }
-  const fwd = m.forward_origin?.type === "channel" ? m.forward_origin.chat : m.forward_from_chat;
-  if (fwd && isAdmin(env, from.id)) {
-    const meBot = await tg(env, "getMe"), mem = await tg(env, "getChatMember", { chat_id: fwd.id, user_id: meBot.result?.id });
-    if (!["administrator", "creator"].includes(mem.result?.status)) return tg(env, "sendMessage", { chat_id: from.id, text: `Make me an admin of “${fwd.title}” first, then forward a post again.` });
-    await env.DB.prepare("INSERT INTO sources(chat_id,title,handle,last) VALUES(?,?,?,?) ON CONFLICT(chat_id) DO UPDATE SET ok=1").bind(fwd.id, fwd.title, fwd.username ? "@" + fwd.username : null, now()).run();
-    return tg(env, "sendMessage", { chat_id: from.id, text: `📥 “${fwd.title}” is connected. New posts there will be read. Set its type in Admin → Sources.` });
   }
   if (text && !isAdmin(env, from.id)) {
     await logEv(env, from.id, "in", "message: " + text.slice(0, 500));
@@ -220,7 +246,7 @@ async function onCallback(env, q) {
 }
 
 // ---------- API for the Mini App ----------
-const publicItem = it => ({ id: it.id, cat: it.cat, name: it.name, descr: it.descr, f: it.f, soft: it.soft ? JSON.parse(it.soft) : [], size: it.size || "", n: it.n || "", tier: it.tier, val: it.val, date: it.date,
+const publicItem = it => ({ id: it.id, cat: it.cat || "overlays", name: it.name || "New resource", descr: it.descr, f: it.f, soft: it.soft ? JSON.parse(it.soft) : [], size: it.size || "", n: it.n || "", tier: it.tier, val: it.val, date: it.date,
   shop: !!it.shop, brand: it.brand, link: it.shop ? it.link : undefined, img: it.img || (it.preview_id ? `/img/${it.id}` : null), vid: it.preview_type === "video" });
 const adminItem = it => ({ ...publicItem(it), status: it.status, hasFile: !!it.file_id, fileLink: it.shop ? undefined : it.link, pass: it.pass });
 
