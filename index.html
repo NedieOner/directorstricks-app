@@ -594,7 +594,7 @@ function renderPanel(){
   $("panel").innerHTML=`<input class="search" id="q" type="search" placeholder="Search ${tab.label.toLowerCase()}…" value="${S.q}" aria-label="Search">
     ${chips}
     <div class="section-label"><span>${tab.id==="latest"?"Latest releases":tab.pub?tab.label+" · free for everyone":tab.label}${S.filter?" · "+S.filter:""}</span><span>${list.length} item${list.length===1?"":"s"}</span></div>
-    <div class="list">${list.length?list.map(itemRow).join(""):`<div class="empty">Nothing here yet. Try another filter.</div>`}</div>`;
+    <div class="list">${list.length?list.map(itemRow).join(""):`<div class="empty">${S.loading?"Loading…":"Nothing here yet. Try another filter."}</div>`}</div>`;
   const q=$("q");q.addEventListener("input",e=>{S.q=e.target.value;const pos=e.target.selectionStart;renderPanel();const n=$("q");n.focus();n.setSelectionRange(pos,pos);});
 }
 
@@ -1068,7 +1068,7 @@ const tShort=iso=>(iso||"").slice(5,16).replace("T"," ");
 const LOCAL_SHOP=ITEMS.filter(i=>i.shop).map(i=>({...i,id:i.id+100000}));
 async function liveBoot(){
   const [tb,me,it]=await Promise.all([call("/tabs"),call("/me"),call("/items")]);
-  if(me.error){toast(me.error);return;}
+  S.loading=false;if(me.error){toast(me.error);render();return;}
   if(tb.tabs)applyTabs(tb.tabs);
   if(!me.disc){S.seenPromo=true;if(openId==="promoSheet")openSheet(null);}
   Object.assign(S,{plan:me.user.plan,until:me.user.until||S.until,inv:me.inv,got:me.got,disc:me.disc,phone:me.user.phone||"",email:me.user.email||"",role:me.admin?"admin":"subscriber",tgAdmin:me.admin});
@@ -1144,8 +1144,10 @@ if(window.LIVE){
   const txt=!T?"Telegram SDK not loaded":!T.initData?"Opened outside the bot (no Telegram login data) · v3":`Telegram: @${u&&u.username||"no username"} · id ${u&&u.id} · admin ${S.tgAdmin?"yes":"no"} · v3`;
   const el=document.createElement("div");el.id="tgDiag";el.style.cssText="font:12px/1.4 var(--body);color:var(--muted);text-align:center;padding:12px 16px 4px;user-select:all";el.textContent=txt;
   $("profileSheet").appendChild(el);window.TG_DIAG=txt;})();
+// in the bot, never flash the sample catalogue: start empty and wait for the server
+if(window.LIVE){ITEMS.length=0;SCHED.length=0;S.loading=true;}
 render();
-if(window.LIVE)liveBoot();
+if(window.LIVE)liveBoot().finally(()=>{if(S.loading){S.loading=false;render();}});
 if(!S.seenPromo&&S.plan!=="pro")setTimeout(()=>{if(!openId){openSheet("promoSheet");logMe("offer −15% shown");}},900);
 </script>
 
