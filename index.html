@@ -1077,7 +1077,7 @@ async function liveBoot(){
   const own=(it.items||[]).map((x,i)=>({...x,g:PAL[x.id%PAL.length],img:x.img&&x.img.startsWith("/img/")?API+x.img:x.img,hidden:x.status&&x.status!=="live",n:x.n||(x.shop?x.brand:""),size:x.size||""}));
   ITEMS.splice(0,ITEMS.length,...own.filter(x=>!x.status||x.status==="live"));
   SCHED.splice(0,SCHED.length,...own.filter(x=>x.status&&x.status!=="live").map(x=>({...x,id:"i"+x.id,sid:x.id})));
-  if(me.admin)await liveAdmin(me);
+  window.__me=me;if(me.admin)await liveAdmin(me);
   render();}
 async function liveAdmin(me){
   const [us,pa,so,br]=await Promise.all([call("/admin/users"),call("/admin/payments"),call("/admin/sources"),call("/admin/broadcasts")]);
@@ -1096,6 +1096,9 @@ if(window.LIVE){
   const _oe=openEdit;openEdit=function(x){window.__ed=typeof x==="object"?x:ITEMS.find(i=>i.id===x);return _oe(x);};
   logMe=function(){};
   let lastPE="";const _sv=save;save=function(){_sv();const pe=S.phone+"|"+S.email;if(lastPE&&pe!==lastPE)call("/profile",{phone:S.phone,email:S.email});lastPE=pe;};
+  // fresh payments/users each time an admin section is opened or the app comes back from the bot chat
+  window.addEventListener("click",e=>{const x=e.target.closest("[data-adm]");if(x&&window.__me?.admin)liveAdmin(window.__me).then(()=>{if(S.tab==="admin")renderAdmin();});});
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden&&window.__me)liveBoot();});
   window.addEventListener("click",async e=>{
     const g=e.target.closest("[data-get]");if(g){e.stopPropagation();const id=+g.dataset.get;const r=await call("/get",{id});
       if(r.error){toast(r.error);return;}if(!S.got.includes(id))S.got.push(id);render();if(!$("viewer").hidden)openViewer(id);toast("Sent to your Telegram chat");return;}
@@ -1103,7 +1106,7 @@ if(window.LIVE){
       if(m!=="stars"){toast("This method is coming soon. Use Telegram Stars or USDT");return;}
       const r=await call("/invoice",{plan:S.payPlan||"m"});if(r.error){toast("Could not create the invoice");return;}
       window.TGA.openInvoice(r.link,st=>{if(st==="paid"){openSheet(null);toast("Payment confirmed. Pro is active");setTimeout(liveBoot,1500);}});return;}
-    if(e.target.closest("label.upload")){e.preventDefault();e.stopPropagation();window.TGA.openTelegramLink("https://t.me/"+window.BOT);toast("Send the screenshot to the bot chat");return;}
+    if(e.target.closest("label.upload")){e.preventDefault();e.stopPropagation();await call("/paywait",{});window.TGA.openTelegramLink("https://t.me/"+window.BOT);toast("Send the screenshot to the bot chat");return;}
     const ua=e.target.closest("[data-uact]");if(ua){e.stopPropagation();const u=USERS.find(x=>x.id===S.selUser);const act=ua.dataset.uact;
       if(act==="inv"){toast("Friends are counted by the bot from invite links");return;}
       const r=await call("/admin/act",{uid:u.uid,act,days:30});if(r.error){toast(r.error);return;}u.plan=act==="grant"?"pro":"free";if(r.until)u.until=r.until;await loadEvents(u.id);toast(act==="grant"?"Pro granted, user notified":"Set to Free");return;}

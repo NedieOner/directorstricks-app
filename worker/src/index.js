@@ -192,15 +192,19 @@ async function onUpdate(env, up) {
     await env.DB.prepare("DELETE FROM settings WHERE k=?").bind(key).run();
     return tg(env, "sendMessage", { chat_id: from.id, text: `✅ Import finished: ${n} resources added to Admin → Schedule. Nothing is published yet: pick a date or press “Publish now” on each one.`, reply_markup: appButton(env) });
   }
+  const isImage = m.photo || (m.document && /^image\//.test(m.document.mime_type || ""));
+  const pw = isImage && !m.forward_origin && await env.DB.prepare("SELECT v FROM settings WHERE k=?").bind(`paywait_${from.id}`).first();
+  const payProof = pw && Date.now() - +pw.v < 6 * 3600e3;
+  if (pw) await env.DB.prepare("DELETE FROM settings WHERE k=?").bind(`paywait_${from.id}`).run();
   const origin = m.forward_origin?.type === "channel" ? m.forward_origin : null;
   let fwd = origin ? origin.chat : m.forward_from_chat;
   const hasMedia = m.photo || m.video || m.document || m.audio || m.animation;
-  if (!fwd && isAdmin(env, from.id) && hasMedia) {
+  if (!fwd && !payProof && isAdmin(env, from.id) && hasMedia) {
     // posts forwarded with the sender hidden, or files sent straight to the bot, go to the pool as "Uploads"
     await env.DB.prepare("INSERT OR IGNORE INTO sources(chat_id,title,handle,last) VALUES(?,?,?,?)").bind(from.id, "Uploads (bot chat)", null, now()).run();
     fwd = { id: from.id, title: "Uploads (bot chat)" };
   }
-  if (fwd && isAdmin(env, from.id)) {
+  if (fwd && !payProof && isAdmin(env, from.id)) {
     let src = await env.DB.prepare("SELECT * FROM sources WHERE chat_id=?").bind(fwd.id).first();
     if (!src) {
       const meBot = await tg(env, "getMe"), mem = await tg(env, "getChatMember", { chat_id: fwd.id, user_id: meBot.result?.id });
@@ -214,7 +218,7 @@ async function onUpdate(env, up) {
     await onChannelPost(env, post, true);
     return;
   }
-  if (m.photo || (m.document && /^image\//.test(m.document.mime_type || ""))) {
+  if (isImage) {
     // payment screenshot for a manual (USDT) transfer → admins approve in Telegram or in the app
     const fid = m.photo ? m.photo.at(-1).file_id : m.document.file_id;
     const r = await env.DB.prepare("INSERT INTO payments(user_id,method,plan,amount,status,proof_file_id,via,at) VALUES(?,?,?,?,?,?,?,?) RETURNING id").bind(from.id, "USDT transfer", "m", "check screenshot", "pending", fid, "bot chat", now()).first();
@@ -294,6 +298,12 @@ async function api(env, req, url, me) {
   }
   if (path === "/profile") {
     await env.DB.prepare("UPDATE users SET phone=?, email=? WHERE id=?").bind(body.phone ?? user.phone, body.email ?? user.email, me.id).run();
+    return { ok: true };
+  }
+  if (path === "/paywait") {
+    // the user pressed "upload screenshot": their next image in the bot chat is a payment proof, even for admins
+    await env.DB.prepare("INSERT OR REPLACE INTO settings(k,v) VALUES(?,?)").bind(`paywait_${me.id}`, String(Date.now())).run();
+    await logEv(env, me.id, "in", "chose USDT transfer, sending screenshot to the bot");
     return { ok: true };
   }
   if (path === "/log") { await logEv(env, me.id, "in", String(body.text || "").slice(0, 200)); return { ok: true }; }
